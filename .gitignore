@@ -62,3 +62,4 @@ logs/
 venv/
 data/
 backups/
+!src/data/
