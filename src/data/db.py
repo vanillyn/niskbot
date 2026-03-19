@@ -27,6 +27,36 @@ class Database:
             await self._conn.close()
             self._conn = None
 
+    async def create_tables(self) -> None:
+        await self.conn.executescript("""
+            CREATE TABLE IF NOT EXISTS guild_configs (
+                guild_id INTEGER NOT NULL,
+                key      TEXT    NOT NULL,
+                value    TEXT    NOT NULL,
+                PRIMARY KEY (guild_id, key)
+            );
+            CREATE TABLE IF NOT EXISTS infractions (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                guild_id     INTEGER NOT NULL,
+                target_id    INTEGER NOT NULL,
+                target_name  TEXT    NOT NULL,
+                case_number  INTEGER NOT NULL,
+                moderator_id INTEGER NOT NULL,
+                type         TEXT    NOT NULL,
+                reason       TEXT    NOT NULL,
+                created_at   INTEGER NOT NULL,
+                duration     INTEGER,
+                UNIQUE (guild_id, target_id, case_number)
+            );
+            CREATE TABLE IF NOT EXISTS permission_overrides (
+                guild_id INTEGER NOT NULL,
+                role_id  INTEGER NOT NULL,
+                node     TEXT    NOT NULL,
+                PRIMARY KEY (guild_id, role_id, node)
+            );
+        """)
+        await self.conn.commit()
+
     async def execute(
         self,
         query: str,
