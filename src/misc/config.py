@@ -6,75 +6,205 @@ import discord
 from discord import app_commands, ui
 from discord.ext import commands
 
-from src.data.configs import delete_config, get_all_config, get_config, set_config
-from src.utils.ui import BaseLayout, BaseModal, InputField
+from src.data.config import delete_config, get_all_config, set_config
+from src.data.util import _CONFIGS, _CONFIGS_FLAT
+from src.member.util import _is_admin
+from src.utils.ui import BaseLayout
 
 if TYPE_CHECKING:
     from src.bot import Bot
 
 
-def _is_admin(member: discord.Member) -> bool:
-    return (
-        member.guild_permissions.administrator or member.guild_permissions.manage_guild
-    )
+def _display(raw: str | None, default: str | None) -> str:
+    if raw is not None:
+        trimmed = raw if len(raw) <= 60 else raw[:60] + "..."
+        return f"`{trimmed}`"
+    if default is not None:
+        return f"{default} *(default)*"
+    return "*not set*"
 
 
-class _SetConfigModal(BaseModal, title="set config"):
-    key_field: InputField = InputField(
-        label="key",
-        custom_id="config_key",
-        placeholder="e.g. mod_log_channel",
-    )
-    value_field: InputField = InputField(
-        label="value",
-        custom_id="config_value",
-        placeholder="e.g. 123456789",
-    )
+class _CatSelect(ui.Select["_ConfigView"]):
+    def __init__(self, parent: "_ConfigView") -> None:
+        options = [
+            discord.SelectOption(
+                label=cat, value=cat, default=(cat == parent._category)
+            )
+            for cat in _CONFIGS
+        ]
+        super().__init__(placeholder="category", options=options)
 
-    def __init__(self, bot: Bot) -> None:
-        super().__init__(title="set config", custom_id="modal:config_set")
+    async def callback(self, interaction: discord.Interaction) -> None:
+        if self.view is None:
+            return
+
+        vals = await get_all_config(self.view._bot.db, self.view._guild_id)
+        view = _ConfigView(self.view._bot, self.view._guild_id, vals, self.values[0])
+        await interaction.response.edit_message(view=view)
+
+
+class _KeySelect(ui.Select["_ConfigView"]):
+    def __init__(self, parent: "_ConfigView") -> None:
+        entries = _CONFIGS[parent._category]
+        options = [
+            discord.SelectOption(
+                label=label[:25],
+                description=_display(parent._values.get(key), default)[:100],
+                value=key,
+                default=(key == parent._selected_key),
+            )
+            for key, label, _hint, default in entries
+        ]
+        super().__init__(placeholder="pick a setting to edit", options=options)
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        if self.view is None:
+            return
+        view = _ConfigView(
+            self.view._bot,
+            self.view._guild_id,
+            self.view._values,
+            self.view._category,
+            selected_key=self.values[0],
+        )
+        await interaction.response.edit_message(view=view)
+
+
+class _SetButton(ui.Button["_ConfigView"]):
+    def __init__(self, *, disabled: bool) -> None:
+        super().__init__(
+            label="set", style=discord.ButtonStyle.primary, disabled=disabled
+        )
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        assert self.view is not None
+        key = self.view._selected_key
+        assert key is not None
+        label, hint, _default = _CONFIGS_FLAT[key]
+        current = self.view._values.get(key, "")
+        await interaction.response.send_modal(
+            _SetModal(
+                self.view._bot,
+                self.view._guild_id,
+                self.view._category,
+                key,
+                label,
+                hint,
+                current,
+            )
+        )
+
+
+class _UnsetButton(ui.Button["_ConfigView"]):
+    def __init__(self, *, disabled: bool) -> None:
+        super().__init__(
+            label="unset", style=discord.ButtonStyle.danger, disabled=disabled
+        )
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        assert self.view is not None
+        key = self.view._selected_key
+        assert key is not None
+        guild_id = self.view._guild_id
+        await delete_config(self.view._bot.db, guild_id, key)
+        vals = await get_all_config(self.view._bot.db, guild_id)
+        view = _ConfigView(self.view._bot, guild_id, vals, self.view._category, key)
+        await interaction.response.edit_message(view=view)
+
+
+class _ConfigView(BaseLayout):
+    def __init__(
+        self,
+        bot: "Bot",
+        guild_id: int,
+        values: dict[str, str],
+        category: str,
+        selected_key: str | None = None,
+    ) -> None:
+        super().__init__(timeout=300)
         self._bot = bot
+        self._guild_id = guild_id
+        self._values = values
+        self._category = category
+        self._selected_key = selected_key
+        self._render()
+
+    def _render(self) -> None:
+        entries = _CONFIGS[self._category]
+        lines: list[str] = [f"## {self._category}\n"]
+        for key, label, _hint, default in entries:
+            marker = "**›** " if key == self._selected_key else ""
+            lines.append(
+                f"{marker}**{label}** — {_display(self._values.get(key), default)}"
+            )
+        self.add_container(ui.TextDisplay("\n".join(lines)))
+
+        if self._selected_key is not None and self._selected_key in _CONFIGS_FLAT:
+            sel_label, sel_hint, sel_default = _CONFIGS_FLAT[self._selected_key]
+            detail = f"**editing: {sel_label}**\nformat: {sel_hint}"
+            if sel_default:
+                detail += f"\ndefault: {sel_default}"
+            self.add_container(ui.TextDisplay(detail), accent_color=0x5865F2)
+
+        self.add_sep()
+        self.add_item(_CatSelect(self))
+        self.add_item(_KeySelect(self))
+        no_sel = self._selected_key is None
+        self.add_item(_SetButton(disabled=no_sel))
+        self.add_item(_UnsetButton(disabled=no_sel))
+
+
+class _SetModal(ui.Modal):
+    def __init__(
+        self,
+        bot: "Bot",
+        guild_id: int,
+        category: str,
+        key: str,
+        label: str,
+        hint: str,
+        current: str,
+    ) -> None:
+        super().__init__(title=f"set: {label}"[:45], custom_id=f"cfg:{key}"[:100])
+        self._bot = bot
+        self._guild_id = guild_id
+        self._category = category
+        self._key = key
+        self._field = ui.TextInput(
+            label=label[:45],
+            custom_id="v",
+            placeholder=hint[:100],
+            default=current or None,
+            required=False,
+            max_length=500,
+            style=discord.TextStyle.paragraph,
+        )
+        self.add_item(self._field)
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
-        if interaction.guild is None:
-            return
-        key = self.key_field.value.strip()
-        value = self.value_field.value.strip()
-        if not key or not value:
-            await interaction.response.send_message(
-                "key and value cannot be empty", ephemeral=True
-            )
-            return
-        await set_config(self._bot.db, interaction.guild.id, key, value)
+        val = self._field.value.strip()
+        if val:
+            await set_config(self._bot.db, self._guild_id, self._key, val)
+        vals = await get_all_config(self._bot.db, self._guild_id)
+        view = _ConfigView(self._bot, self._guild_id, vals, self._category, self._key)
+        if interaction.message is not None:
+            await interaction.message.edit(view=view)
+        msg = f"updated **{self._key}**" if val else "no change made"
+        await interaction.response.send_message(msg, ephemeral=True)
 
-        layout = BaseLayout()
-        layout.add_container(
-            ui.TextDisplay(f"**config updated**\n`{key}` set to `{value}`"),
-            accent_color=0x57F287,
-        )
-        await interaction.response.send_message(view=layout, ephemeral=True)
+    async def on_error(
+        self, interaction: discord.Interaction, error: Exception
+    ) -> None:
+        await interaction.response.send_message("something went wrong", ephemeral=True)
+        raise error
 
 
 class ConfigCog(commands.Cog, name="config"):
-    def __init__(self, bot: Bot) -> None:
+    def __init__(self, bot: "Bot") -> None:
         self.bot = bot
 
-    grp = app_commands.Group(name="config", description="manage server configuration")
-
-    @grp.command(name="set", description="set a config value")
-    async def config_set(self, interaction: discord.Interaction) -> None:
-        if not isinstance(interaction.user, discord.Member) or not _is_admin(
-            interaction.user
-        ):
-            await interaction.response.send_message(
-                "missing permissions", ephemeral=True
-            )
-            return
-        await interaction.response.send_modal(_SetConfigModal(self.bot))
-
-    @grp.command(name="get", description="get a config value")
-    @app_commands.describe(key="config key")
-    async def config_get(self, interaction: discord.Interaction, key: str) -> None:
+    @app_commands.command(name="config", description="browse and edit server settings")
+    async def config_cmd(self, interaction: discord.Interaction) -> None:
         if not isinstance(interaction.user, discord.Member) or not _is_admin(
             interaction.user
         ):
@@ -84,69 +214,11 @@ class ConfigCog(commands.Cog, name="config"):
             return
         if interaction.guild is None:
             return
-        value = await get_config(self.bot.db, interaction.guild.id, key)
-
-        layout = BaseLayout()
-        if value is None:
-            layout.add_container(
-                ui.TextDisplay(f"`{key}` is not set"),
-                accent_color=0xED4245,
-            )
-        else:
-            layout.add_container(
-                ui.TextDisplay(f"**`{key}`**\n{value}"),
-                accent_color=0x5865F2,
-            )
-        await interaction.response.send_message(view=layout, ephemeral=True)
-
-    @grp.command(name="unset", description="remove a config value")
-    @app_commands.describe(key="config key")
-    async def config_unset(self, interaction: discord.Interaction, key: str) -> None:
-        if not isinstance(interaction.user, discord.Member) or not _is_admin(
-            interaction.user
-        ):
-            await interaction.response.send_message(
-                "missing permissions", ephemeral=True
-            )
-            return
-        if interaction.guild is None:
-            return
-        await delete_config(self.bot.db, interaction.guild.id, key)
-
-        layout = BaseLayout()
-        layout.add_container(
-            ui.TextDisplay(f"unset `{key}`"),
-            accent_color=0xFEE75C,
-        )
-        await interaction.response.send_message(view=layout, ephemeral=True)
-
-    @grp.command(name="list", description="list all config values")
-    async def config_list(self, interaction: discord.Interaction) -> None:
-        if not isinstance(interaction.user, discord.Member) or not _is_admin(
-            interaction.user
-        ):
-            await interaction.response.send_message(
-                "missing permissions", ephemeral=True
-            )
-            return
-        if interaction.guild is None:
-            return
-        data = await get_all_config(self.bot.db, interaction.guild.id)
-
-        layout = BaseLayout()
-        if not data:
-            layout.add_container(
-                ui.TextDisplay("no config values set"),
-                accent_color=0xED4245,
-            )
-        else:
-            lines = [f"`{k}` — {v}" for k, v in sorted(data.items())]
-            layout.add_container(
-                ui.TextDisplay("**server config**\n" + "\n".join(lines)),
-                accent_color=0x5865F2,
-            )
-        await interaction.response.send_message(view=layout, ephemeral=True)
+        vals = await get_all_config(self.bot.db, interaction.guild.id)
+        first_cat = next(iter(_CONFIGS))
+        view = _ConfigView(self.bot, interaction.guild.id, vals, first_cat)
+        await interaction.response.send_message(view=view, ephemeral=True)
 
 
-async def setup(bot: Bot) -> None:
+async def setup(bot: "Bot") -> None:
     await bot.add_cog(ConfigCog(bot))
