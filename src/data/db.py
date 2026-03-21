@@ -128,6 +128,37 @@ class Database:
                 last_checked INTEGER NOT NULL,
                 PRIMARY KEY (guild_id, platform, streamer)
             );
+            CREATE TABLE IF NOT EXISTS aliases (
+                guild_id INTEGER NOT NULL,
+                name     TEXT    NOT NULL,
+                response TEXT    NOT NULL,
+                PRIMARY KEY (guild_id, name)
+            );
+            CREATE TABLE IF NOT EXISTS suggestions (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                guild_id    INTEGER NOT NULL,
+                channel_id  INTEGER NOT NULL,
+                message_id  INTEGER,
+                author_id   INTEGER NOT NULL,
+                title       TEXT    NOT NULL,
+                details     TEXT    NOT NULL,
+                votes_up    INTEGER NOT NULL DEFAULT 0,
+                votes_down  INTEGER NOT NULL DEFAULT 0,
+                status      TEXT    NOT NULL DEFAULT 'open',
+                created_at  INTEGER NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS suggestion_votes (
+                suggestion_id INTEGER NOT NULL,
+                user_id       INTEGER NOT NULL,
+                vote          TEXT    NOT NULL,
+                PRIMARY KEY (suggestion_id, user_id)
+            );
+            CREATE TABLE IF NOT EXISTS starboard_entries (
+                guild_id             INTEGER NOT NULL,
+                source_message_id    INTEGER NOT NULL,
+                starboard_message_id INTEGER NOT NULL,
+                PRIMARY KEY (guild_id, source_message_id)
+            );
         """)
         await self.conn.commit()
 

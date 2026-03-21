@@ -17,6 +17,9 @@ extensions: list[str] = [
     "src.server.containers",
     "src.server.logging.alerts",
     "src.server.economy.currency",
+    "src.server.alias",
+    "src.server.suggestions",
+    "src.server.starboard",
     "src.member.cookies",
 ]
 
@@ -27,6 +30,7 @@ class Bot(commands.Bot):
         intents = discord.Intents.default()
         intents.message_content = True
         intents.members = True
+        intents.reactions = True
         super().__init__(
             command_prefix=":",
             intents=intents,
@@ -36,10 +40,11 @@ class Bot(commands.Bot):
 
     async def setup_hook(self) -> None:
         from src.server.resources import ResourceButton
+        from src.server.suggestions import SuggestionButton
 
         await self.db.connect()
         await self.db.create_tables()
-        self.add_dynamic_items(ResourceButton)
+        self.add_dynamic_items(ResourceButton, SuggestionButton)
         for ext in extensions:
             try:
                 await self.load_extension(ext)

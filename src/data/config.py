@@ -58,6 +58,13 @@ def _int(v: str | None, default: int | None = None) -> int | None:
         return default
 
 
+def _int_req(v: str | None, default: int) -> int:
+    try:
+        return int(v) if v is not None else default
+    except ValueError:
+        return default
+
+
 def _list(v: str | None, default: list[str] | None = None) -> list[str]:
     if v is None:
         return default or []
@@ -207,6 +214,15 @@ class ServerConfig:
     starboard_add_roles: list[str] = field(default_factory=list)
     alias: bool = True
     alias_roles: list[str] = field(default_factory=list)
+    alias_prefix: str = "!"
+    suggestions_channel: int | None = None
+    suggestions_vote_up: str = "upvote"
+    suggestions_vote_down: str = "downvote"
+    suggestions_vote_cancel: str = "cancel"
+    suggestions_threshold_approve: int = 70
+    suggestions_threshold_disapprove: int = 30
+    suggestions_timeout: str = "24h"
+    suggestions_vote_roles: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -382,5 +398,22 @@ class GuildConfig:
             starboard_add_roles=_list(r.get("starboard.add.role")),
             alias=_bool(r.get("alias"), True),
             alias_roles=_list(r.get("alias.role")),
+            alias_prefix=_str_req(r.get("server.alias.prefix"), "!"),
+            suggestions_channel=_int(r.get("server.suggestions.channel")),
+            suggestions_vote_up=_str_req(r.get("server.suggestions.vote.up"), "upvote"),
+            suggestions_vote_down=_str_req(
+                r.get("server.suggestions.vote.down"), "downvote"
+            ),
+            suggestions_vote_cancel=_str_req(
+                r.get("server.suggestions.vote.cancel"), "cancel"
+            ),
+            suggestions_threshold_approve=_int_req(
+                r.get("server.suggestions.threshold.approve"), 70
+            ),
+            suggestions_threshold_disapprove=_int_req(
+                r.get("server.suggestions.threshold.disapprove"), 30
+            ),
+            suggestions_timeout=_str_req(r.get("server.suggestions.timeout"), "24h"),
+            suggestions_vote_roles=_list(r.get("server.suggestions.vote.roles")),
         )
         return g
