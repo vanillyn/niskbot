@@ -80,9 +80,7 @@ class EchoCog(commands.Cog, name="echo"):
     def __init__(self, bot: "Bot") -> None:
         self.bot = bot
 
-    @app_commands.command(
-        name="echo", description="send a message with placeholder support"
-    )
+    @app_commands.command(name="echo", description="send a message")
     @app_commands.describe(channel="channel to send to")
     async def echo(
         self,

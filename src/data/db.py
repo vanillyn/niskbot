@@ -90,6 +90,44 @@ class Database:
                 last_checked INTEGER NOT NULL,
                 PRIMARY KEY (guild_id, streamer)
             );
+            CREATE TABLE IF NOT EXISTS member_economy (
+                guild_id INTEGER NOT NULL,
+                user_id  INTEGER NOT NULL,
+                balance  INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (guild_id, user_id)
+            );
+            CREATE TABLE IF NOT EXISTS member_cookies (
+                guild_id INTEGER NOT NULL,
+                user_id  INTEGER NOT NULL,
+                amount   INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (guild_id, user_id)
+            );
+            CREATE TABLE IF NOT EXISTS shop_items (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                guild_id    INTEGER NOT NULL,
+                name        TEXT    NOT NULL,
+                description TEXT    NOT NULL DEFAULT '',
+                price       INTEGER NOT NULL,
+                role_add    INTEGER,
+                role_remove INTEGER,
+                UNIQUE (guild_id, name)
+            );
+            CREATE TABLE IF NOT EXISTS streamer_alerts (
+                guild_id   INTEGER NOT NULL,
+                platform   TEXT    NOT NULL,
+                streamer   TEXT    NOT NULL,
+                channel_id INTEGER NOT NULL,
+                message    TEXT,
+                PRIMARY KEY (guild_id, platform, streamer)
+            );
+            CREATE TABLE IF NOT EXISTS stream_live_cache (
+                guild_id     INTEGER NOT NULL,
+                platform     TEXT    NOT NULL,
+                streamer     TEXT    NOT NULL,
+                is_live      INTEGER NOT NULL DEFAULT 0,
+                last_checked INTEGER NOT NULL,
+                PRIMARY KEY (guild_id, platform, streamer)
+            );
         """)
         await self.conn.commit()
 

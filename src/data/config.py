@@ -98,12 +98,7 @@ class LogConfig:
     alerts_leaves_channel: int | None = None
     alerts_leaves_message: str | None = None
     alerts_twitch: bool = False
-    alerts_twitch_channel: int | None = None
-    alerts_twitch_streamer: str | None = None
-    alerts_twitch_message: str | None = None
     alerts_youtube: bool = False
-    alerts_youtube_channel: int | None = None
-    alerts_youtube_message: str | None = None
     alerts_free_games: bool = False
     alerts_free_games_channel: int | None = None
     alerts_free_games_message: str | None = None
@@ -183,6 +178,13 @@ class EconomyConfig:
     casino_roles: list[str] = field(default_factory=list)
     drop_roles: list[str] = field(default_factory=list)
     shop_roles: list[str] = field(default_factory=list)
+    cookies: bool = False
+    cookies_name: str = "cookie"
+    cookies_symbol: str = "c"
+    cookies_value: int | None = None
+    cookies_messages: list[str] = field(
+        default_factory=lambda: ["thank you", "thanks", "ty", "thx", "thank u"]
+    )
 
 
 @dataclass
@@ -200,7 +202,7 @@ class ServerConfig:
     announcements_channel: int | None = None
     announcements_roles: list[str] = field(default_factory=list)
     starboard_channel: int | None = None
-    starboard_react: str = "⭐"
+    starboard_react: str = "star"
     starboard_roles: list[str] = field(default_factory=list)
     starboard_add_roles: list[str] = field(default_factory=list)
     alias: bool = True
@@ -257,12 +259,7 @@ class GuildConfig:
             alerts_leaves_channel=_int(r.get("log.alerts.leaves.channel")),
             alerts_leaves_message=_str(r.get("log.alerts.leaves.message")),
             alerts_twitch=_bool(r.get("log.alerts.twitch")),
-            alerts_twitch_channel=_int(r.get("log.alerts.twitch.channel")),
-            alerts_twitch_streamer=_str(r.get("log.alerts.twitch.streamer")),
-            alerts_twitch_message=_str(r.get("log.alerts.twitch.message")),
             alerts_youtube=_bool(r.get("log.alerts.youtube")),
-            alerts_youtube_channel=_int(r.get("log.alerts.youtube.channel")),
-            alerts_youtube_message=_str(r.get("log.alerts.youtube.message")),
             alerts_free_games=_bool(r.get("log.alerts.free_games")),
             alerts_free_games_channel=_int(r.get("log.alerts.free_games.channel")),
             alerts_free_games_message=_str(r.get("log.alerts.free_games.message")),
@@ -359,6 +356,14 @@ class GuildConfig:
             casino_roles=_list(r.get("economy.casino.role")),
             drop_roles=_list(r.get("economy.drop.role")),
             shop_roles=_list(r.get("economy.shop.role")),
+            cookies=_bool(r.get("economy.currency.cookies")),
+            cookies_name=_str_req(r.get("economy.currency.cookies.name"), "cookie"),
+            cookies_symbol=_str_req(r.get("economy.currency.cookies.symbol"), "c"),
+            cookies_value=_int(r.get("economy.currency.cookies.value")),
+            cookies_messages=_list(
+                r.get("economy.currency.cookies.messages"),
+                ["thank you", "thanks", "ty", "thx", "thank u"],
+            ),
         )
         g.xp = XpConfig(
             roles=_list(r.get("xp.role")),
@@ -372,7 +377,7 @@ class GuildConfig:
             announcements_channel=_int(r.get("server.announcements.channel")),
             announcements_roles=_list(r.get("server.announcements.role")),
             starboard_channel=_int(r.get("starboard.channel")),
-            starboard_react=_str_req(r.get("starboard.react"), "⭐"),
+            starboard_react=_str_req(r.get("starboard.react"), "star"),
             starboard_roles=_list(r.get("starboard.role")),
             starboard_add_roles=_list(r.get("starboard.add.role")),
             alias=_bool(r.get("alias"), True),

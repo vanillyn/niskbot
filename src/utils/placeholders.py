@@ -6,7 +6,9 @@ from dataclasses import dataclass, field
 
 import discord
 
-_BUTTON_RE = re.compile(r"\{(?:button|b):([^:}]+):([^:}]+):([^:}]+):([^}]+)\}")
+_BUTTON_RE = re.compile(
+    r"\{(?:button|b):([^:}]+):([^:}]+):([^:}]+):((?:[^{}]|\{[^}]*\})+)\}"
+)
 _CONTAINER_RE = re.compile(r"\{container:([^}]+)\}")
 _ROLE_RE = re.compile(r"^\{role:(add|remove):([^:}]+)(?::([^}]*))?\}$")
 _CHANNEL_RE = re.compile(

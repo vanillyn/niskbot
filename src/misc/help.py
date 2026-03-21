@@ -18,7 +18,7 @@ def _build_overview_page(
     categories: list[tuple[str, list[app_commands.Command[Any, Any, Any]]]],
 ) -> PageBuilder:
     def builder(layout: PaginatedLayout) -> None:
-        layout.add_text("## help\nuse the arrows to browse commands by category.")
+        layout.add_text("## help\nuse the buttons to browse commands by category.")
         layout.add_sep(large=True)
         lines: list[str] = []
         for name, cmds in categories:

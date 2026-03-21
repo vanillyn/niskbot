@@ -16,6 +16,8 @@ extensions: list[str] = [
     "src.server.resources",
     "src.server.containers",
     "src.server.logging.alerts",
+    "src.server.economy.currency",
+    "src.member.cookies",
 ]
 
 

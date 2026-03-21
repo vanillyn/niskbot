@@ -7,9 +7,9 @@ from typing import TYPE_CHECKING
 import discord
 from discord import app_commands, ui
 from discord.ext import commands
-from src.server.containers import build_discord_container
 
 from src.member.util import _is_admin
+from src.server.containers import build_discord_container
 from src.utils.logger import get_logger
 from src.utils.placeholders import (
     ParsedButton,
@@ -184,16 +184,26 @@ async def render_resource(
     if parsed.text:
         layout.add_container(ui.TextDisplay(parsed.text))
 
+    all_btns: list[ui.Button[ui.View]] = []
     for b in parsed.buttons:
         if b.is_link and b.url:
-            link_btn: ui.Button[BaseLayout] = ui.Button(
+            btn: ui.Button[ui.View] = ui.Button(
                 label=b.label,
                 url=b.url,
                 style=discord.ButtonStyle.link,
             )
-            layout.add_item(link_btn)
         else:
-            layout.add_item(ResourceButton(b.internal_id, b.label, b.style, b.disabled))
+            btn = ui.Button(
+                label=b.label,
+                style=b.style,
+                disabled=b.disabled,
+                custom_id=f"rb:{b.internal_id}",
+            )
+        all_btns.append(btn)
+
+    for i in range(0, len(all_btns), 5):
+        row: ui.ActionRow[BaseLayout] = ui.ActionRow(*all_btns[i : i + 5])
+        layout.add_item(row)
 
     non_link = [b for b in parsed.buttons if not b.is_link]
     return layout, non_link
