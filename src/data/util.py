@@ -153,6 +153,8 @@ _CONFIGS: dict[str, list[tuple[str, str, str, str | None]]] = {
             "text — {user}, {reason}, {infraction_id}",
             "[{infraction_id}] slowmode set by {user}",
         ),
+    ],
+    "alerts": [
         ("log.alerts", "log server events", "true or false", "false"),
         ("log.alerts.channel", "default alerts channel", "channel id", None),
         ("log.alerts.joins", "log member joins", "true or false", "true"),
@@ -163,7 +165,18 @@ _CONFIGS: dict[str, list[tuple[str, str, str, str | None]]] = {
         ("log.alerts.leaves.message", "leave message", "text — {user}, {server}", None),
         ("log.alerts.twitch", "twitch go-live alerts", "true or false", "false"),
         ("log.alerts.twitch.channel", "twitch alert channel", "channel id", None),
-        ("log.alerts.twitch.message", "twitch alert message", "text", None),
+        (
+            "log.alerts.twitch.streamer",
+            "twitch username",
+            "exact twitch username",
+            None,
+        ),
+        (
+            "log.alerts.twitch.message",
+            "twitch alert message",
+            "text — {streamer}, {title}, {game}, {url}",
+            None,
+        ),
         ("log.alerts.youtube", "youtube live alerts", "true or false", "false"),
         ("log.alerts.youtube.channel", "youtube alert channel", "channel id", None),
         ("log.alerts.youtube.message", "youtube alert message", "text", None),

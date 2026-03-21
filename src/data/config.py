@@ -99,6 +99,7 @@ class LogConfig:
     alerts_leaves_message: str | None = None
     alerts_twitch: bool = False
     alerts_twitch_channel: int | None = None
+    alerts_twitch_streamer: str | None = None
     alerts_twitch_message: str | None = None
     alerts_youtube: bool = False
     alerts_youtube_channel: int | None = None
@@ -215,7 +216,7 @@ class GuildConfig:
     server: ServerConfig = field(default_factory=ServerConfig)
 
     @classmethod
-    async def load(cls, db: Database, guild_id: int) -> GuildConfig:
+    async def load(cls, db: Database, guild_id: int) -> "GuildConfig":
         r = await get_all_config(db, guild_id)
         g = cls()
         g.log = LogConfig(
@@ -257,6 +258,7 @@ class GuildConfig:
             alerts_leaves_message=_str(r.get("log.alerts.leaves.message")),
             alerts_twitch=_bool(r.get("log.alerts.twitch")),
             alerts_twitch_channel=_int(r.get("log.alerts.twitch.channel")),
+            alerts_twitch_streamer=_str(r.get("log.alerts.twitch.streamer")),
             alerts_twitch_message=_str(r.get("log.alerts.twitch.message")),
             alerts_youtube=_bool(r.get("log.alerts.youtube")),
             alerts_youtube_channel=_int(r.get("log.alerts.youtube.channel")),

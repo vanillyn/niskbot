@@ -203,11 +203,11 @@ class BaseContainer(ui.Container["BaseLayout"]):
     ) -> None:
         super().__init__(*children, accent_color=accent_color)
 
-    def add_text(self, content: str) -> BaseContainer:
+    def add_text(self, content: str) -> "BaseContainer":
         self.add_item(ui.TextDisplay(content))
         return self
 
-    def add_sep(self, *, large: bool = False) -> BaseContainer:
+    def add_sep(self, *, large: bool = False) -> "BaseContainer":
         spacing = (
             discord.SeparatorSpacing.large if large else discord.SeparatorSpacing.small
         )
@@ -219,11 +219,11 @@ class BaseLayout(ui.LayoutView):
     def __init__(self, *, timeout: float | None = None) -> None:
         super().__init__(timeout=timeout)
 
-    def add_text(self, content: str) -> BaseLayout:
+    def add_text(self, content: str) -> "BaseLayout":
         self.add_item(ui.TextDisplay(content))
         return self
 
-    def add_sep(self, *, large: bool = False) -> BaseLayout:
+    def add_sep(self, *, large: bool = False) -> "BaseLayout":
         spacing = (
             discord.SeparatorSpacing.large if large else discord.SeparatorSpacing.small
         )
@@ -234,19 +234,19 @@ class BaseLayout(ui.LayoutView):
         self,
         *children: ui.Item["BaseLayout"],
         accent_color: int | None = None,
-    ) -> BaseLayout:
+    ) -> "BaseLayout":
         self.add_item(BaseContainer(*children, accent_color=accent_color))
         return self
 
     def add_section(
         self,
         text: str,
-        accessory: ui.Button["BaseLayout"] | ui.Thumbnail,
-    ) -> BaseLayout:
+        accessory: "ui.Button[BaseLayout] | ui.Thumbnail",
+    ) -> "BaseLayout":
         self.add_item(ui.Section(ui.TextDisplay(text), accessory=accessory))
         return self
 
-    def add_gallery(self, *items: discord.MediaGalleryItem) -> BaseLayout:
+    def add_gallery(self, *items: discord.MediaGalleryItem) -> "BaseLayout":
         self.add_item(ui.MediaGallery(*items))
         return self
 
@@ -284,17 +284,18 @@ class PaginatedLayout(BaseLayout):
             show_counter=self._show_counter,
             timeout=self.timeout,
         )
-        self.add_item(
+        row: ui.ActionRow["PaginatedLayout"] = ui.ActionRow()
+        row.add_item(
             _NavButton(
                 label=self._prev_label,
                 target=self._index - 1,
                 disabled=self._index == 0,
                 custom_id="page:prev",
-                **nav_opts,
+                **nav_opts,  # pyright: ignore[reportArgumentType]
             )
         )
         if self._show_counter:
-            self.add_item(
+            row.add_item(
                 ui.Button(
                     label=f"{self._index + 1} / {total}",
                     style=discord.ButtonStyle.secondary,
@@ -302,15 +303,16 @@ class PaginatedLayout(BaseLayout):
                     custom_id="page:counter",
                 )
             )
-        self.add_item(
+        row.add_item(
             _NavButton(
                 label=self._next_label,
                 target=self._index + 1,
                 disabled=self._index == total - 1,
                 custom_id="page:next",
-                **nav_opts,
+                **nav_opts,  # pyright: ignore[reportArgumentType]
             )
         )
+        self.add_item(row)
 
 
 class _NavButton(ui.Button["PaginatedLayout"]):

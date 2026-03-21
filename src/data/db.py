@@ -54,6 +54,42 @@ class Database:
                 node     TEXT    NOT NULL,
                 PRIMARY KEY (guild_id, role_id, node)
             );
+            CREATE TABLE IF NOT EXISTS resources (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                guild_id   INTEGER NOT NULL,
+                name       TEXT    NOT NULL,
+                creator_id INTEGER NOT NULL,
+                content    TEXT    NOT NULL,
+                created_at INTEGER NOT NULL,
+                UNIQUE (guild_id, name)
+            );
+            CREATE TABLE IF NOT EXISTS containers (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                guild_id     INTEGER NOT NULL,
+                name         TEXT    NOT NULL,
+                creator_id   INTEGER NOT NULL,
+                items        TEXT    NOT NULL DEFAULT '[]',
+                accent_color INTEGER,
+                created_at   INTEGER NOT NULL,
+                UNIQUE (guild_id, name)
+            );
+            CREATE TABLE IF NOT EXISTS resource_buttons (
+                button_uuid  TEXT    PRIMARY KEY,
+                guild_id     INTEGER NOT NULL,
+                message_id   INTEGER,
+                button_name  TEXT    NOT NULL,
+                button_label TEXT    NOT NULL,
+                button_style TEXT    NOT NULL,
+                disabled     INTEGER NOT NULL DEFAULT 0,
+                action       TEXT    NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS twitch_stream_cache (
+                guild_id     INTEGER NOT NULL,
+                streamer     TEXT    NOT NULL,
+                is_live      INTEGER NOT NULL DEFAULT 0,
+                last_checked INTEGER NOT NULL,
+                PRIMARY KEY (guild_id, streamer)
+            );
         """)
         await self.conn.commit()
 

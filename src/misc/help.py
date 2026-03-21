@@ -1,16 +1,15 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import discord
-from discord import app_commands, ui
+from discord import app_commands
 from discord.ext import commands
 
-from src.utils.ui import BaseLayout, PageBuilder, PaginatedLayout, paginate
+from src.utils.ui import PageBuilder, PaginatedLayout, paginate
 
 if TYPE_CHECKING:
     from src.bot import Bot
-
 
 _COMMANDS_PER_PAGE = 6
 
@@ -56,9 +55,7 @@ def _chunk(
     return [items[i : i + size] for i in range(0, len(items), size)]
 
 
-def _build_pages(
-    bot: Bot,
-) -> list[PageBuilder]:
+def _build_pages(bot: "Bot") -> list[PageBuilder]:
     raw = bot.tree.get_commands()
 
     categories: dict[str, list[app_commands.Command[Any, Any, Any]]] = {}
@@ -88,7 +85,7 @@ def _build_pages(
 
 
 class HelpCog(commands.Cog, name="help"):
-    def __init__(self, bot: Bot) -> None:
+    def __init__(self, bot: "Bot") -> None:
         self.bot = bot
 
     @app_commands.command(name="help", description="browse all available commands")
@@ -103,5 +100,5 @@ class HelpCog(commands.Cog, name="help"):
         await interaction.response.send_message(view=layout, ephemeral=True)
 
 
-async def setup(bot: Bot) -> None:
+async def setup(bot: "Bot") -> None:
     await bot.add_cog(HelpCog(bot))

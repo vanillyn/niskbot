@@ -26,6 +26,8 @@ def _display(raw: str | None, default: str | None) -> str:
 
 class _CatSelect(ui.Select["_ConfigView"]):
     def __init__(self, parent: "_ConfigView") -> None:
+        self._bot = parent._bot
+        self._guild_id = parent._guild_id
         options = [
             discord.SelectOption(
                 label=cat, value=cat, default=(cat == parent._category)
@@ -35,16 +37,17 @@ class _CatSelect(ui.Select["_ConfigView"]):
         super().__init__(placeholder="category", options=options)
 
     async def callback(self, interaction: discord.Interaction) -> None:
-        if self.view is None:
-            return
-
-        vals = await get_all_config(self.view._bot.db, self.view._guild_id)
-        view = _ConfigView(self.view._bot, self.view._guild_id, vals, self.values[0])
+        vals = await get_all_config(self._bot.db, self._guild_id)
+        view = _ConfigView(self._bot, self._guild_id, vals, self.values[0])
         await interaction.response.edit_message(view=view)
 
 
 class _KeySelect(ui.Select["_ConfigView"]):
     def __init__(self, parent: "_ConfigView") -> None:
+        self._bot = parent._bot
+        self._guild_id = parent._guild_id
+        self._category = parent._category
+        self._selected_key = parent._selected_key
         entries = _CONFIGS[parent._category]
         options = [
             discord.SelectOption(
@@ -58,35 +61,41 @@ class _KeySelect(ui.Select["_ConfigView"]):
         super().__init__(placeholder="pick a setting to edit", options=options)
 
     async def callback(self, interaction: discord.Interaction) -> None:
-        if self.view is None:
-            return
+        vals = await get_all_config(self._bot.db, self._guild_id)
         view = _ConfigView(
-            self.view._bot,
-            self.view._guild_id,
-            self.view._values,
-            self.view._category,
+            self._bot,
+            self._guild_id,
+            vals,
+            self._category,
             selected_key=self.values[0],
         )
         await interaction.response.edit_message(view=view)
 
 
 class _SetButton(ui.Button["_ConfigView"]):
-    def __init__(self, *, disabled: bool) -> None:
+    def __init__(self, parent: "_ConfigView") -> None:
+        self._bot = parent._bot
+        self._guild_id = parent._guild_id
+        self._category = parent._category
+        self._selected_key = parent._selected_key
+        self._values = parent._values
         super().__init__(
-            label="set", style=discord.ButtonStyle.primary, disabled=disabled
+            label="set",
+            style=discord.ButtonStyle.primary,
+            disabled=parent._selected_key is None,
         )
 
     async def callback(self, interaction: discord.Interaction) -> None:
-        assert self.view is not None
-        key = self.view._selected_key
-        assert key is not None
+        key = self._selected_key
+        if key is None:
+            return
         label, hint, _default = _CONFIGS_FLAT[key]
-        current = self.view._values.get(key, "")
+        current = self._values.get(key, "")
         await interaction.response.send_modal(
             _SetModal(
-                self.view._bot,
-                self.view._guild_id,
-                self.view._category,
+                self._bot,
+                self._guild_id,
+                self._category,
                 key,
                 label,
                 hint,
@@ -96,19 +105,24 @@ class _SetButton(ui.Button["_ConfigView"]):
 
 
 class _UnsetButton(ui.Button["_ConfigView"]):
-    def __init__(self, *, disabled: bool) -> None:
+    def __init__(self, parent: "_ConfigView") -> None:
+        self._bot = parent._bot
+        self._guild_id = parent._guild_id
+        self._category = parent._category
+        self._selected_key = parent._selected_key
         super().__init__(
-            label="unset", style=discord.ButtonStyle.danger, disabled=disabled
+            label="unset",
+            style=discord.ButtonStyle.danger,
+            disabled=parent._selected_key is None,
         )
 
     async def callback(self, interaction: discord.Interaction) -> None:
-        assert self.view is not None
-        key = self.view._selected_key
-        assert key is not None
-        guild_id = self.view._guild_id
-        await delete_config(self.view._bot.db, guild_id, key)
-        vals = await get_all_config(self.view._bot.db, guild_id)
-        view = _ConfigView(self.view._bot, guild_id, vals, self.view._category, key)
+        key = self._selected_key
+        if key is None:
+            return
+        await delete_config(self._bot.db, self._guild_id, key)
+        vals = await get_all_config(self._bot.db, self._guild_id)
+        view = _ConfigView(self._bot, self._guild_id, vals, self._category, key)
         await interaction.response.edit_message(view=view)
 
 
@@ -147,11 +161,9 @@ class _ConfigView(BaseLayout):
             self.add_container(ui.TextDisplay(detail), accent_color=0x5865F2)
 
         self.add_sep()
-        self.add_item(_CatSelect(self))
-        self.add_item(_KeySelect(self))
-        no_sel = self._selected_key is None
-        self.add_item(_SetButton(disabled=no_sel))
-        self.add_item(_UnsetButton(disabled=no_sel))
+        self.add_item(ui.ActionRow(_CatSelect(self)))
+        self.add_item(ui.ActionRow(_KeySelect(self)))
+        self.add_item(ui.ActionRow(_SetButton(self), _UnsetButton(self)))
 
 
 class _SetModal(ui.Modal):
