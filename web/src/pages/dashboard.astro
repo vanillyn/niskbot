@@ -1,0 +1,692 @@
+---
+import Base from "../layouts/base.astro";
+---
+
+<Base title="dashboard">
+  <div class="app" id="app">
+    <!-- topbar -->
+    <header class="topbar surface-low">
+      <button class="btn-icon" id="back-btn" aria-label="back to guild list" hidden>
+        <span class="icon">arrow_back</span>
+      </button>
+      <div class="topbar-title">
+        <span class="icon icon-sm icon-filled primary-color" aria-hidden="true">shield</span>
+        <span class="md-title-lg" id="topbar-title">dashboard</span>
+      </div>
+      <div class="topbar-actions">
+        <div class="user-chip" id="user-chip" hidden>
+          <img class="user-avatar" id="user-avatar" src="" alt="" width="32" height="32" />
+          <span class="md-label-lg" id="user-name"></span>
+        </div>
+        <button class="btn btn-text" id="logout-btn" hidden>
+          <span class="icon icon-sm">logout</span>
+          sign out
+        </button>
+      </div>
+    </header>
+
+    <!-- guild list -->
+    <section class="view" id="guild-view">
+      <div class="guild-view-inner">
+        <div class="guild-view-header">
+          <h2 class="md-headline-sm">select a server</h2>
+          <p class="md-body-md on-surface-variant">
+            only servers where you're an administrator are shown
+          </p>
+        </div>
+        <div class="guild-grid" id="guild-grid">
+          <div class="guild-loading" id="guild-loading">
+            <div class="spinner"></div>
+            <span class="md-body-md on-surface-variant">loading servers...</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- config editor -->
+    <section class="view" id="config-view" hidden>
+      <nav class="nav-rail" id="category-nav" aria-label="config categories"></nav>
+      <div class="config-panel">
+        <div class="config-panel-header">
+          <div>
+            <h2 class="md-title-lg" id="panel-title">server</h2>
+            <p class="md-body-sm on-surface-variant" id="panel-subtitle"></p>
+          </div>
+          <div class="panel-actions">
+            <button class="btn btn-filled-tonal" id="reset-btn" disabled>
+              discard
+            </button>
+            <button class="btn btn-filled" id="save-btn" disabled>
+              <span class="icon icon-sm">save</span>
+              save changes
+            </button>
+          </div>
+        </div>
+        <div class="config-fields" id="config-fields"></div>
+      </div>
+    </section>
+  </div>
+</Base>
+
+<script>
+  import { getToken, clearToken, login } from "../lib/auth";
+  import { getGuilds, getConfig, setConfig, type Guild } from "../lib/api";
+  import { CONFIG_CATEGORIES, type ConfigField, type ConfigCategory } from "../lib/config-meta";
+
+  // --- state ---
+  let token = getToken();
+  let guilds: Guild[] = [];
+  let activeGuild: Guild | null = null;
+  let serverConfig: Record<string, string> = {};
+  let activeCategory: ConfigCategory = CONFIG_CATEGORIES[0]!;
+  let pendingChanges: Record<string, string | null> = {};
+
+  // --- elements ---
+  const guildView    = el<HTMLElement>("guild-view");
+  const configView   = el<HTMLElement>("config-view");
+  const guildGrid    = el<HTMLElement>("guild-grid");
+  const guildLoading = el<HTMLElement>("guild-loading");
+  const categoryNav  = el<HTMLElement>("category-nav");
+  const configFields = el<HTMLElement>("config-fields");
+  const panelTitle   = el<HTMLElement>("panel-title");
+  const panelSub     = el<HTMLElement>("panel-subtitle");
+  const topbarTitle  = el<HTMLElement>("topbar-title");
+  const backBtn      = el<HTMLButtonElement>("back-btn");
+  const saveBtn      = el<HTMLButtonElement>("save-btn");
+  const resetBtn     = el<HTMLButtonElement>("reset-btn");
+  const logoutBtn    = el<HTMLButtonElement>("logout-btn");
+  const userChip     = el<HTMLElement>("user-chip");
+  const userName     = el<HTMLElement>("user-name");
+  const userAvatar   = el<HTMLImageElement>("user-avatar");
+
+  function el<T extends HTMLElement>(id: string): T {
+    return document.getElementById(id) as T;
+  }
+
+  // --- snackbar ---
+  let snackTimeout: ReturnType<typeof setTimeout> | null = null;
+  function snack(msg: string, isError = false): void {
+    const bar = document.getElementById("snackbar");
+    if (!bar) return;
+    bar.textContent = msg;
+    bar.style.background = isError
+      ? "var(--md-sys-color-error-container)"
+      : "var(--md-sys-color-inverse-surface)";
+    bar.style.color = isError
+      ? "var(--md-sys-color-on-error-container)"
+      : "var(--md-sys-color-inverse-on-surface)";
+    bar.classList.add("shown");
+    if (snackTimeout) clearTimeout(snackTimeout);
+    snackTimeout = setTimeout(() => bar.classList.remove("shown"), 3000);
+  }
+
+  // --- auth init ---
+  async function init(): Promise<void> {
+    if (!token) {
+      login();
+      return;
+    }
+    logoutBtn.hidden = false;
+    logoutBtn.addEventListener("click", () => {
+      clearToken();
+      window.location.replace("/");
+    });
+
+    try {
+      const me = await fetch("https://discord.com/api/v10/users/@me", {
+        headers: { authorization: `Bearer ${token}` },
+      }).then(r => r.json()) as { username: string; id: string; avatar: string | null };
+
+      userChip.hidden = false;
+      userName.textContent = me.username;
+      if (me.avatar) {
+        userAvatar.src = `https://cdn.discordapp.com/avatars/${me.id}/${me.avatar}.webp?size=64`;
+        userAvatar.alt = me.username;
+      } else {
+        userAvatar.style.display = "none";
+      }
+    } catch {
+      // non-critical
+    }
+
+    await loadGuilds();
+  }
+
+  async function loadGuilds(): Promise<void> {
+    try {
+      guilds = await getGuilds();
+    } catch (e) {
+      snack("failed to load servers", true);
+      return;
+    }
+    renderGuilds();
+  }
+
+  function renderGuilds(): void {
+    guildLoading.remove();
+    if (!guilds.length) {
+      guildGrid.innerHTML =
+        `<div class="guild-empty md-body-md on-surface-variant">
+           no servers found where you're an administrator
+         </div>`;
+      return;
+    }
+
+    guildGrid.innerHTML = guilds.map(g => {
+      const icon = g.icon
+        ? `<img class="guild-icon" src="https://cdn.discordapp.com/icons/${g.id}/${g.icon}.webp?size=64" alt="" />`
+        : `<div class="guild-icon-fallback md-headline-sm">${g.name[0]?.toUpperCase() ?? "?"}</div>`;
+      const badge = g.in_server
+        ? `<span class="badge badge-primary">configured</span>`
+        : `<span class="badge badge-surface">not in server</span>`;
+      return `
+        <button class="guild-card card state-layer" data-guild="${g.id}">
+          ${icon}
+          <div class="guild-info">
+            <span class="guild-name md-title-md">${esc(g.name)}</span>
+            ${badge}
+          </div>
+          <span class="icon on-surface-variant">chevron_right</span>
+        </button>`;
+    }).join("");
+
+    guildGrid.querySelectorAll<HTMLButtonElement>("[data-guild]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const guildId = btn.dataset["guild"] ?? "";
+        const guild = guilds.find(g => g.id === guildId);
+        if (guild) void selectGuild(guild);
+      });
+    });
+  }
+
+  async function selectGuild(guild: Guild): Promise<void> {
+    activeGuild = guild;
+    pendingChanges = {};
+
+    topbarTitle.textContent = guild.name;
+    backBtn.hidden = false;
+    guildView.hidden = true;
+    configView.hidden = false;
+
+    renderCategoryNav();
+    await loadConfig();
+  }
+
+  async function loadConfig(): Promise<void> {
+    if (!activeGuild) return;
+    configFields.innerHTML = `<div class="config-loading"><div class="spinner"></div></div>`;
+    try {
+      serverConfig = await getConfig(activeGuild.id);
+    } catch {
+      snack("failed to load config", true);
+      return;
+    }
+    renderCategory(activeCategory);
+    updateSaveState();
+  }
+
+  function renderCategoryNav(): void {
+    categoryNav.innerHTML = CONFIG_CATEGORIES.map(cat => `
+      <button
+        class="nav-rail-item ${cat.key === activeCategory.key ? "active" : ""}"
+        data-cat="${cat.key}"
+        aria-label="${cat.label}"
+        title="${cat.label}"
+      >
+        <span class="nav-rail-indicator">
+          <span class="icon">${cat.icon}</span>
+        </span>
+        <span class="md-label-sm">${cat.label}</span>
+      </button>
+    `).join("");
+
+    categoryNav.querySelectorAll<HTMLButtonElement>("[data-cat]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const key = btn.dataset["cat"] ?? "";
+        const cat = CONFIG_CATEGORIES.find(c => c.key === key);
+        if (cat) switchCategory(cat);
+      });
+    });
+  }
+
+  function switchCategory(cat: ConfigCategory): void {
+    activeCategory = cat;
+    categoryNav.querySelectorAll(".nav-rail-item").forEach(btn => {
+      btn.classList.toggle("active", (btn as HTMLElement).dataset["cat"] === cat.key);
+    });
+    renderCategory(cat);
+  }
+
+  function renderCategory(cat: ConfigCategory): void {
+    panelTitle.textContent = cat.label;
+    panelSub.textContent = `${cat.fields.length} setting${cat.fields.length !== 1 ? "s" : ""}`;
+    configFields.innerHTML = cat.fields.map(renderField).join("");
+
+    configFields.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
+      "input[data-key], textarea[data-key]"
+    ).forEach(input => {
+      input.addEventListener("change", () => onFieldChange(input));
+      input.addEventListener("input", () => onFieldChange(input));
+    });
+  }
+
+  function renderField(field: ConfigField): string {
+    const raw = pendingChanges[field.key] !== undefined
+      ? (pendingChanges[field.key] ?? "")
+      : (serverConfig[field.key] ?? "");
+
+    if (field.type === "toggle") {
+      const checked = raw ? raw === "true" : field.default === "true";
+      return `
+        <div class="field-row card-outlined">
+          <label class="switch-wrap" for="field-${field.key}">
+            <div class="switch-labels">
+              <span class="md-label-lg">${esc(field.label)}</span>
+              <span class="md-body-sm on-surface-variant">${esc(field.hint)}</span>
+            </div>
+            <label class="switch">
+              <input
+                type="checkbox"
+                id="field-${field.key}"
+                data-key="${field.key}"
+                data-type="toggle"
+                ${checked ? "checked" : ""}
+              />
+              <span class="switch-track">
+                <span class="switch-thumb"></span>
+              </span>
+            </label>
+          </label>
+        </div>`;
+    }
+
+    const isArea = field.type === "textarea";
+    const inputType = field.type === "number" ? "number" : "text";
+    const value = esc(raw);
+    const placeholder = field.default ? `${esc(field.hint)} (default: ${esc(field.default)})` : esc(field.hint);
+    const isDirty = pendingChanges[field.key] !== undefined;
+
+    return `
+      <div class="field-row field-wrap ${isDirty ? "field-dirty" : ""}">
+        <label class="field-label" for="field-${field.key}">${esc(field.label)}</label>
+        <div class="field">
+          ${isArea
+            ? `<textarea id="field-${field.key}" data-key="${field.key}" data-type="${field.type}" placeholder="${placeholder}" rows="3">${value}</textarea>`
+            : `<input id="field-${field.key}" type="${inputType}" data-key="${field.key}" data-type="${field.type}" placeholder="${placeholder}" value="${value}" />`
+          }
+          ${raw && raw !== field.default
+            ? `<button class="btn-icon clear-btn" data-clear="${field.key}" aria-label="clear field">
+                <span class="icon icon-sm">close</span>
+               </button>`
+            : ""
+          }
+        </div>
+        ${field.hint ? `<span class="field-hint">${esc(field.hint)}</span>` : ""}
+      </div>`;
+  }
+
+  function onFieldChange(input: HTMLInputElement | HTMLTextAreaElement): void {
+    const key = input.dataset["key"] ?? "";
+    if (!key) return;
+    const fieldType = input.dataset["type"] ?? "";
+    let value: string;
+    if (fieldType === "toggle") {
+      value = (input as HTMLInputElement).checked ? "true" : "false";
+    } else {
+      value = input.value.trim();
+    }
+
+    const original = serverConfig[key];
+    if (value === original || (!value && !original)) {
+      delete pendingChanges[key];
+    } else {
+      pendingChanges[key] = value || null;
+    }
+
+    updateSaveState();
+    refreshClearBtn(key, value);
+  }
+
+  function refreshClearBtn(key: string, value: string): void {
+    const existing = configFields.querySelector<HTMLButtonElement>(`[data-clear="${key}"]`);
+    const input = configFields.querySelector<HTMLElement>(`[data-key="${key}"]`);
+    const fieldDiv = input?.closest(".field");
+    if (!fieldDiv) return;
+    if (value && !existing) {
+      const btn = document.createElement("button");
+      btn.className = "btn-icon clear-btn";
+      btn.dataset["clear"] = key;
+      btn.setAttribute("aria-label", "clear field");
+      btn.innerHTML = `<span class="icon icon-sm">close</span>`;
+      fieldDiv.appendChild(btn);
+      btn.addEventListener("click", () => clearField(key));
+    } else if (!value && existing) {
+      existing.remove();
+    }
+  }
+
+  function clearField(key: string): void {
+    const input = configFields.querySelector<HTMLInputElement | HTMLTextAreaElement>(`[data-key="${key}"]`);
+    if (!input) return;
+    input.value = "";
+    pendingChanges[key] = null;
+    updateSaveState();
+    refreshClearBtn(key, "");
+  }
+
+  function updateSaveState(): void {
+    const hasChanges = Object.keys(pendingChanges).length > 0;
+    saveBtn.disabled = !hasChanges;
+    resetBtn.disabled = !hasChanges;
+  }
+
+  async function saveChanges(): Promise<void> {
+    if (!activeGuild || !Object.keys(pendingChanges).length) return;
+    saveBtn.disabled = true;
+    saveBtn.textContent = "saving...";
+    try {
+      await setConfig(activeGuild.id, pendingChanges);
+      for (const [k, v] of Object.entries(pendingChanges)) {
+        if (v) {
+          serverConfig[k] = v;
+        } else {
+          delete serverConfig[k];
+        }
+      }
+      pendingChanges = {};
+      snack("changes saved");
+      renderCategory(activeCategory);
+    } catch {
+      snack("failed to save changes", true);
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = `<span class="icon icon-sm">save</span> save changes`;
+      updateSaveState();
+    }
+  }
+
+  function esc(s: string | null | undefined): string {
+    if (!s) return "";
+    return s
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  // --- event wiring ---
+  backBtn.addEventListener("click", () => {
+    activeGuild = null;
+    pendingChanges = {};
+    configView.hidden = true;
+    guildView.hidden = false;
+    backBtn.hidden = true;
+    topbarTitle.textContent = "dashboard";
+  });
+
+  saveBtn.addEventListener("click", () => void saveChanges());
+
+  resetBtn.addEventListener("click", () => {
+    pendingChanges = {};
+    renderCategory(activeCategory);
+    updateSaveState();
+  });
+
+  configFields.addEventListener("click", (e) => {
+    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-clear]");
+    if (btn?.dataset["clear"]) clearField(btn.dataset["clear"]);
+  });
+
+  void init();
+</script>
+
+<style>
+  .app {
+    display: flex;
+    flex-direction: column;
+    min-height: 100svh;
+  }
+
+  /* topbar */
+  .topbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 16px;
+    height: 64px;
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+    flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .topbar-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .topbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .user-chip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 12px 4px 4px;
+    border-radius: var(--md-shape-full);
+    background: var(--md-sys-color-surface-container);
+  }
+
+  .user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+  }
+
+  /* views */
+  .view {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+  }
+
+  /* guild list */
+  .guild-view-inner {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+    padding: 40px;
+    max-width: 1100px;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  .guild-view-header {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .guild-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+  }
+
+  .guild-loading,
+  .guild-empty {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 48px;
+  }
+
+  .guild-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px;
+    background: var(--md-sys-color-surface-container);
+    border: none;
+    border-radius: var(--md-shape-xl);
+    cursor: pointer;
+    text-align: left;
+    font-family: inherit;
+    color: var(--md-sys-color-on-surface);
+    transition: background var(--md-duration-short);
+  }
+
+  .guild-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--md-shape-md);
+    object-fit: cover;
+    flex-shrink: 0;
+  }
+
+  .guild-icon-fallback {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--md-shape-md);
+    background: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .guild-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .guild-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* config layout */
+  #config-view {
+    overflow: hidden;
+  }
+
+  .nav-rail {
+    flex-shrink: 0;
+    overflow-y: auto;
+    height: calc(100svh - 64px);
+  }
+
+  .config-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow-y: auto;
+    height: calc(100svh - 64px);
+  }
+
+  .config-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 28px 32px 24px;
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+    position: sticky;
+    top: 0;
+    background: var(--md-sys-color-surface);
+    z-index: 5;
+    flex-shrink: 0;
+  }
+
+  .panel-actions {
+    display: flex;
+    gap: 12px;
+  }
+
+  .config-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 24px 32px 40px;
+  }
+
+  .config-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 80px;
+  }
+
+  .field-row {
+    padding: 16px;
+    border-radius: var(--md-shape-lg);
+  }
+
+  .field-dirty .field {
+    border-color: var(--md-sys-color-primary);
+  }
+
+  .clear-btn {
+    color: var(--md-sys-color-on-surface-variant);
+    opacity: 0.7;
+  }
+
+  .clear-btn:hover { opacity: 1; }
+
+  /* spinner */
+  .spinner {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 3px solid var(--md-sys-color-surface-container-highest);
+    border-top-color: var(--md-sys-color-primary);
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* responsive */
+  @media (max-width: 720px) {
+    .guild-view-inner { padding: 24px 16px; }
+
+    .config-panel-header {
+      flex-direction: column;
+      align-items: flex-start;
+      padding: 20px 16px;
+    }
+
+    .config-fields { padding: 16px 16px 32px; }
+
+    .nav-rail {
+      width: 64px;
+    }
+
+    .nav-rail .md-label-sm { display: none; }
+    .nav-rail-item { padding: 8px 0; }
+
+    .topbar-actions .btn { display: none; }
+  }
+
+  @media (max-width: 480px) {
+    .guild-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

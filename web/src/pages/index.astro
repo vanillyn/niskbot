@@ -1,0 +1,70 @@
+---
+import Base from "../layouts/base.astro";
+---
+
+<Base title="niskbot">
+    <main id="login-page">
+        <div class="login-card card-elevated">
+            <h1 class="md-headline-sm">niskbot</h1>
+            <p class="md-body-md on-surface-variant">bot for niska's server.</p>
+            <button id="login-btn" class="btn btn-filled">
+                <span class="icon icon-sm" aria-hidden="true">login</span>
+                admin/mod login
+            </button>
+        </div>
+    </main>
+</Base>
+
+<script>
+    import { getToken, login } from "../lib/auth";
+
+    if (getToken()) {
+        window.location.replace("/dashboard");
+    }
+
+    document.getElementById("login-btn")?.addEventListener("click", login);
+</script>
+
+<style>
+    #login-page {
+        min-height: 100svh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+    }
+
+    .login-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+        padding: 48px 40px;
+        max-width: 400px;
+        width: 100%;
+        text-align: center;
+    }
+
+    .login-logo {
+        width: 72px;
+        height: 72px;
+        border-radius: var(--md-shape-xl);
+        background: var(--md-sys-color-primary-container);
+        color: var(--md-sys-color-on-primary-container);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 8px;
+    }
+
+    .login-card .btn {
+        margin-top: 8px;
+        width: 100%;
+        padding: 14px 24px;
+    }
+
+    .hint-text {
+        margin-top: 4px;
+        opacity: 0.7;
+    }
+</style>

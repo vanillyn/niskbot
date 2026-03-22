@@ -1,18 +1,12 @@
 from __future__ import annotations
 
 import asyncio
-import os
 
 from dotenv import load_dotenv
 
-from src.bot import Bot
+from src.bot import main
 
-
-async def main() -> None:
-    load_dotenv()
-    token: str = os.environ["DISCORD_TOKEN"]
-    async with Bot() as bot:
-        await bot.start(token)
+load_dotenv()
 
 
 asyncio.run(main())

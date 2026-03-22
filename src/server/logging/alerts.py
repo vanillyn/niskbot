@@ -1,15 +1,15 @@
 from __future__ import annotations
 
+import functools
 import os
 import time
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 import discord
 from discord import app_commands, ui
-from discord.ext import commands, tasks
+from discord.ext import commands
 
-from src.apis.twitch import TwitchClient
-from src.apis.youtube import YouTubeClient
 from src.data.config import GuildConfig
 from src.data.economy import (
     delete_streamer_alert,
@@ -22,23 +22,33 @@ from src.member.util import _is_admin
 from src.utils.logger import get_logger
 from src.utils.placeholders import resolve_text
 from src.utils.ui import BaseLayout
+from src.web.apis.twitch import (
+    eventsub_list,
+    eventsub_subscribe,
+    eventsub_unsubscribe,
+    get_follower_count,
+    get_stream,
+    get_user,
+)
+from src.web.apis.youtube import YouTubeClient
+from src.web.server import webhook as _webhook
 
 if TYPE_CHECKING:
     from src.bot import Bot
 
 log = get_logger("alerts")
 
-_TWITCH_INTERVAL = 120
 _YOUTUBE_INTERVAL = 300
+_CALLBACK_URL: str = ""
 
 
-def _resolve_twitch(template: str, streamer: str, data: dict[str, object]) -> str:
-    return (
-        template.replace("{streamer}", streamer)
-        .replace("{title}", str(data.get("title", "")))
-        .replace("{game}", str(data.get("game_name", "")))
-        .replace("{url}", f"https://twitch.tv/{streamer}")
-    )
+def set_callback_url(url: str) -> None:
+    global _CALLBACK_URL
+    _CALLBACK_URL = url
+
+
+def _twitch_callback_url() -> str:
+    return f"{_CALLBACK_URL}/webhook/twitch"
 
 
 def _resolve_youtube(template: str, streamer: str, data: dict[str, object]) -> str:
@@ -49,34 +59,150 @@ def _resolve_youtube(template: str, streamer: str, data: dict[str, object]) -> s
     )
 
 
+async def _handle_stream_online(bot: "Bot", broadcaster_id: str) -> None:
+    from src.data.db import Database
+
+    assert isinstance(bot.db, Database)
+
+    user = await get_user(user_id=broadcaster_id)
+    stream = await get_stream(broadcaster_id)
+    followers = await get_follower_count(broadcaster_id)
+
+    display_name = str(user["display_name"]) if user else broadcaster_id
+    profile_pic = str(user["profile_image_url"]) if user else ""
+    stream_title = stream["title"] if stream else "untitled stream"
+    game = stream["game_name"] if stream else "unknown"
+    thumbnail_url = (
+        stream["thumbnail_url"].replace("{width}", "1280").replace("{height}", "720")
+        if stream
+        else profile_pic
+    )
+    stream_url = f"https://twitch.tv/{display_name.lower()}"
+
+    relative_ts = ""
+    if stream and stream.get("started_at"):
+        started = datetime.fromisoformat(
+            str(stream["started_at"]).replace("Z", "+00:00")
+        )
+        relative_ts = f"<t:{int(started.timestamp())}:R>"
+
+    for guild in bot.guilds:
+        entries = await get_streamer_alerts(bot.db, guild.id, "twitch")
+        for streamer_login, channel_id, message in entries:
+            user_info = await get_user(login=streamer_login)
+            if not user_info or str(user_info.get("id", "")) != broadcaster_id:
+                continue
+
+            channel = guild.get_channel(channel_id)
+            if not isinstance(channel, discord.TextChannel):
+                continue
+
+            cfg = await GuildConfig.load(bot.db, guild.id)
+            template = message or f"{display_name} is live!"
+            text = (
+                template.replace("{streamer}", display_name)
+                .replace("{title}", stream_title)
+                .replace("{game}", game)
+                .replace("{url}", stream_url)
+                .replace("{followers}", f"{followers:,}")
+            )
+
+            container = discord.ui.Container(
+                discord.ui.Section(
+                    discord.ui.TextDisplay(
+                        f"# {text}\n[{stream_title}]({stream_url})\nplaying **{game}**"
+                    ),
+                    accessory=discord.ui.Thumbnail(media=profile_pic),
+                ),
+                discord.ui.MediaGallery(
+                    discord.MediaGalleryItem(media=thumbnail_url),
+                ),
+                discord.ui.TextDisplay(
+                    f"-# {followers:,} followers{' | ' + relative_ts if relative_ts else ''}"
+                ),
+                discord.ui.ActionRow(
+                    discord.ui.Button(
+                        label="watch live",
+                        url=stream_url,
+                        style=discord.ButtonStyle.link,
+                    )
+                ),
+                accent_color=discord.Color(0x9146FF),
+            )
+            layout = BaseLayout()
+            layout.add_item(container)
+
+            try:
+                await channel.send(view=layout)
+                log.info("sent live alert for %s in guild %s", display_name, guild.id)
+            except discord.HTTPException as e:
+                log.error("failed to send live alert: %s", e)
+
+
+async def _ensure_subscription(broadcaster_id: str) -> str | None:
+    existing = await eventsub_list()
+    for sub in existing:
+        cond = sub.get("condition", {})
+        if (
+            isinstance(cond, dict)
+            and cond.get("broadcaster_user_id") == broadcaster_id
+            and sub.get("type") == "stream.online"
+            and sub.get("status") == "enabled"
+        ):
+            return str(sub["id"])
+    return await eventsub_subscribe(broadcaster_id, _twitch_callback_url())
+
+
+async def _remove_subscription_if_unused(
+    bot: "Bot", broadcaster_id: str, sub_id: str
+) -> None:
+    from src.data.db import Database
+
+    assert isinstance(bot.db, Database)
+    for guild in bot.guilds:
+        entries = await get_streamer_alerts(bot.db, guild.id, "twitch")
+        for streamer_login, _, _ in entries:
+            user_info = await get_user(login=streamer_login)
+            if user_info and str(user_info.get("id", "")) == broadcaster_id:
+                return
+    await eventsub_unsubscribe(sub_id)
+    log.info("removed eventsub subscription %s (no guilds need it)", sub_id)
+
+
 class AlertsCog(commands.Cog, name="alerts"):
     def __init__(self, bot: "Bot") -> None:
         self.bot = bot
-        self._twitch: TwitchClient | None = None
         self._youtube: YouTubeClient | None = None
-
-        client_id = os.environ.get("TWITCH_CLIENT_ID", "")
-        client_secret = os.environ.get("TWITCH_CLIENT_SECRET", "")
-        if client_id and client_secret:
-            self._twitch = TwitchClient(client_id, client_secret)
-            self._twitch_poll.start()
-        else:
-            log.warning("twitch env vars missing — twitch alerts disabled")
-
         yt_key = os.environ.get("YOUTUBE_API_KEY", "")
         if yt_key:
             self._youtube = YouTubeClient(yt_key)
-            self._youtube_poll.start()
-        else:
-            log.warning("youtube api key missing — youtube alerts disabled")
+
+    async def cog_load(self) -> None:
+        await self._sync_eventsub()
 
     async def cog_unload(self) -> None:
-        self._twitch_poll.cancel()
-        self._youtube_poll.cancel()
-        if self._twitch is not None:
-            await self._twitch.close()
         if self._youtube is not None:
             await self._youtube.close()
+
+    async def _sync_eventsub(self) -> None:
+        if not _CALLBACK_URL:
+            log.warning("no callback url set — skipping eventsub sync")
+            return
+
+        needed: set[str] = set()
+        for guild in self.bot.guilds:
+            entries = await get_streamer_alerts(self.bot.db, guild.id, "twitch")
+            for streamer_login, _, _ in entries:
+                user_info = await get_user(login=streamer_login)
+                if user_info:
+                    needed.add(str(user_info["id"]))
+
+        callback = functools.partial(_handle_stream_online, self.bot)
+        for broadcaster_id in needed:
+            sub_id = await _ensure_subscription(broadcaster_id)
+            if sub_id:
+                _webhook.register(broadcaster_id, callback)
+                log.info("eventsub active for %s", broadcaster_id)
 
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member) -> None:
@@ -124,145 +250,13 @@ class AlertsCog(commands.Cog, name="alerts"):
         except discord.HTTPException as e:
             log.error("leave alert failed in guild %s: %s", guild.id, e)
 
-    @tasks.loop(seconds=_TWITCH_INTERVAL)
-    async def _twitch_poll(self) -> None:
-        if self._twitch is None:
-            return
-        for guild in self.bot.guilds:
-            cfg = await GuildConfig.load(self.bot.db, guild.id)
-            if not cfg.log.alerts_twitch:
-                continue
-            entries = await get_streamer_alerts(self.bot.db, guild.id, "twitch")
-            for streamer, channel_id, message in entries:
-                try:
-                    await self._poll_twitch(guild, streamer, channel_id, message)
-                except Exception as e:
-                    log.error(
-                        "twitch poll error %s guild %s: %s", streamer, guild.id, e
-                    )
-
-    async def _poll_twitch(
-        self,
-        guild: discord.Guild,
-        streamer: str,
-        channel_id: int,
-        message: str | None,
-    ) -> None:
-        assert self._twitch is not None
-        channel = guild.get_channel(channel_id)
-        if not isinstance(channel, discord.TextChannel):
-            return
-
-        was_live = await get_stream_cache(self.bot.db, guild.id, "twitch", streamer)
-        try:
-            stream = await self._twitch.get_stream(streamer)
-        except Exception as e:
-            log.warning("twitch api error for %s: %s", streamer, e)
-            return
-
-        is_live = stream is not None
-        await set_stream_cache(
-            self.bot.db, guild.id, "twitch", streamer, is_live, int(time.time())
-        )
-
-        if is_live and not was_live:
-            data: dict[str, object] = stream or {}
-            text = _resolve_twitch(
-                message or f"{streamer} is now live!",
-                streamer,
-                data,
-            )
-            layout = BaseLayout()
-            layout.add_container(ui.TextDisplay(text), accent_color=0x9146FF)
-            try:
-                await channel.send(view=layout)
-                log.info("twitch alert sent for %s in guild %s", streamer, guild.id)
-            except discord.HTTPException as e:
-                log.error("twitch alert failed %s guild %s: %s", streamer, guild.id, e)
-
-    @tasks.loop(seconds=_YOUTUBE_INTERVAL)
-    async def _youtube_poll(self) -> None:
-        if self._youtube is None:
-            return
-        for guild in self.bot.guilds:
-            cfg = await GuildConfig.load(self.bot.db, guild.id)
-            if not cfg.log.alerts_youtube:
-                continue
-            entries = await get_streamer_alerts(self.bot.db, guild.id, "youtube")
-            for channel_id_str, discord_channel_id, message in entries:
-                try:
-                    await self._poll_youtube(
-                        guild, channel_id_str, discord_channel_id, message
-                    )
-                except Exception as e:
-                    log.error(
-                        "youtube poll error %s guild %s: %s",
-                        channel_id_str,
-                        guild.id,
-                        e,
-                    )
-
-    async def _poll_youtube(
-        self,
-        guild: discord.Guild,
-        yt_channel_id: str,
-        discord_channel_id: int,
-        message: str | None,
-    ) -> None:
-        assert self._youtube is not None
-        channel = guild.get_channel(discord_channel_id)
-        if not isinstance(channel, discord.TextChannel):
-            return
-
-        was_live = await get_stream_cache(
-            self.bot.db, guild.id, "youtube", yt_channel_id
-        )
-        try:
-            stream = await self._youtube.get_live_stream(yt_channel_id)
-        except Exception as e:
-            log.warning("youtube api error for %s: %s", yt_channel_id, e)
-            return
-
-        is_live = stream is not None
-        await set_stream_cache(
-            self.bot.db, guild.id, "youtube", yt_channel_id, is_live, int(time.time())
-        )
-
-        if is_live and not was_live:
-            data: dict[str, object] = stream or {}
-            channel_title = str(data.get("channel_title", yt_channel_id))
-            text = _resolve_youtube(
-                message or f"{channel_title} is now live!",
-                yt_channel_id,
-                data,
-            )
-            layout = BaseLayout()
-            layout.add_container(ui.TextDisplay(text), accent_color=0xFF0000)
-            try:
-                await channel.send(view=layout)
-                log.info(
-                    "youtube alert sent for %s in guild %s", yt_channel_id, guild.id
-                )
-            except discord.HTTPException as e:
-                log.error(
-                    "youtube alert failed %s guild %s: %s", yt_channel_id, guild.id, e
-                )
-
-    @_twitch_poll.before_loop
-    async def _before_twitch(self) -> None:
-        await self.bot.wait_until_ready()
-
-    @_youtube_poll.before_loop
-    async def _before_youtube(self) -> None:
-        await self.bot.wait_until_ready()
-
     alerts = app_commands.Group(name="alerts", description="manage streamer alerts")
 
     @alerts.command(name="twitch-add", description="add a twitch streamer alert")
     @app_commands.describe(
         streamer="twitch username",
         channel="channel to post alerts in",
-        message="custom message ({streamer}, {title}, {game}, {url})",
+        message="custom message ({streamer}, {title}, {game}, {url}, {followers})",
     )
     async def twitch_add(
         self,
@@ -280,6 +274,17 @@ class AlertsCog(commands.Cog, name="alerts"):
             return
         if interaction.guild is None:
             return
+
+        await interaction.response.defer(ephemeral=True)
+
+        user_info = await get_user(login=streamer.lower())
+        if user_info is None:
+            await interaction.followup.send(
+                f"couldn't find twitch user `{streamer}`", ephemeral=True
+            )
+            return
+
+        broadcaster_id = str(user_info["id"])
         await upsert_streamer_alert(
             self.bot.db,
             interaction.guild.id,
@@ -288,8 +293,18 @@ class AlertsCog(commands.Cog, name="alerts"):
             channel.id,
             message,
         )
-        await interaction.response.send_message(
-            f"twitch alert added for **{streamer}** → {channel.mention}", ephemeral=True
+
+        sub_id = await _ensure_subscription(broadcaster_id)
+        if sub_id:
+            callback = functools.partial(_handle_stream_online, self.bot)
+            _webhook.register(broadcaster_id, callback)
+            log.info("eventsub subscribed for %s (%s)", streamer, broadcaster_id)
+        else:
+            log.warning("eventsub subscription failed for %s", streamer)
+
+        await interaction.followup.send(
+            f"twitch alert added for **{user_info['display_name']}** → {channel.mention}",
+            ephemeral=True,
         )
 
     @alerts.command(name="twitch-remove", description="remove a twitch streamer alert")
@@ -308,13 +323,34 @@ class AlertsCog(commands.Cog, name="alerts"):
             return
         if interaction.guild is None:
             return
+
+        await interaction.response.defer(ephemeral=True)
+
         removed = await delete_streamer_alert(
             self.bot.db, interaction.guild.id, "twitch", streamer.lower()
         )
-        msg = (
-            f"removed twitch alert for **{streamer}**" if removed else "alert not found"
+        if not removed:
+            await interaction.followup.send("alert not found", ephemeral=True)
+            return
+
+        user_info = await get_user(login=streamer.lower())
+        if user_info:
+            broadcaster_id = str(user_info["id"])
+            existing = await eventsub_list()
+            for sub in existing:
+                cond = sub.get("condition", {})
+                if (
+                    isinstance(cond, dict)
+                    and cond.get("broadcaster_user_id") == broadcaster_id
+                ):
+                    await _remove_subscription_if_unused(
+                        self.bot, broadcaster_id, str(sub["id"])
+                    )
+                    break
+
+        await interaction.followup.send(
+            f"removed twitch alert for **{streamer}**", ephemeral=True
         )
-        await interaction.response.send_message(msg, ephemeral=True)
 
     @alerts.command(name="twitch-list", description="list twitch streamer alerts")
     async def twitch_list(self, interaction: discord.Interaction) -> None:
@@ -336,9 +372,7 @@ class AlertsCog(commands.Cog, name="alerts"):
         lines = ["**twitch alerts:**"]
         for streamer, channel_id, msg in entries:
             preview = (
-                f" — `{msg[:40]}...`"
-                if msg and len(msg) > 40
-                else (f" — `{msg}`" if msg else "")
+                f" — `{msg[:40]}{'...' if len(msg or '') > 40 else ''}`" if msg else ""
             )
             lines.append(f"- **{streamer}** → <#{channel_id}>{preview}")
         await interaction.response.send_message("\n".join(lines), ephemeral=True)
@@ -426,9 +460,7 @@ class AlertsCog(commands.Cog, name="alerts"):
         lines = ["**youtube alerts:**"]
         for yt_id, channel_id, msg in entries:
             preview = (
-                f" — `{msg[:40]}...`"
-                if msg and len(msg) > 40
-                else (f" — `{msg}`" if msg else "")
+                f" — `{msg[:40]}{'...' if len(msg or '') > 40 else ''}`" if msg else ""
             )
             lines.append(f"- `{yt_id}` → <#{channel_id}>{preview}")
         await interaction.response.send_message("\n".join(lines), ephemeral=True)
