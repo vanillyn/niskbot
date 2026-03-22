@@ -3,66 +3,72 @@ import Base from "../layouts/base.astro";
 ---
 
 <Base title="signing in...">
-  <main class="callback-page">
-    <div class="callback-inner">
-      <div class="spinner" aria-label="loading"></div>
-      <p class="md-body-lg" id="status-text">signing in...</p>
-    </div>
-  </main>
+    <main class="callback-page">
+        <div class="callback-inner">
+            <div class="spinner" aria-label="loading"></div>
+            <p class="md-body-lg" id="status-text">signing in...</p>
+        </div>
+    </main>
 </Base>
 
 <script>
-  import { setToken } from "../lib/auth";
+    import { setToken } from "../lib/auth";
 
-  function fail(msg: string): void {
-    const el = document.getElementById("status-text");
-    if (el) el.textContent = msg;
-    setTimeout(() => { window.location.replace("/"); }, 2000);
-  }
+    const BASE = import.meta.env.BASE_URL;
 
-  const hash = window.location.hash.slice(1);
-  if (!hash) {
-    fail("no token received — redirecting...");
-  } else {
-    const params = new URLSearchParams(hash);
-    const token = params.get("access_token");
-    const expiresIn = params.get("expires_in");
-    const tokenType = params.get("token_type");
-
-    if (!token || tokenType?.toLowerCase() !== "bearer") {
-      fail("invalid token — redirecting...");
-    } else {
-      setToken(token, expiresIn ? parseInt(expiresIn, 10) : 604800);
-      window.location.replace("/dashboard");
+    function fail(msg: string): void {
+        const el = document.getElementById("status-text");
+        if (el) el.textContent = msg;
+        setTimeout(() => {
+            window.location.replace(BASE);
+        }, 2000);
     }
-  }
+
+    const hash = window.location.hash.slice(1);
+    if (!hash) {
+        fail("no token received — redirecting...");
+    } else {
+        const params = new URLSearchParams(hash);
+        const token = params.get("access_token");
+        const expiresIn = params.get("expires_in");
+        const tokenType = params.get("token_type");
+
+        if (!token || tokenType?.toLowerCase() !== "bearer") {
+            fail("invalid token — redirecting...");
+        } else {
+            setToken(token, expiresIn ? parseInt(expiresIn, 10) : 604800);
+            window.location.replace(`${BASE}dashboard`);
+        }
+    }
 </script>
 
 <style>
-  .callback-page {
-    min-height: 100svh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
+    .callback-page {
+        min-height: 100svh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
 
-  .callback-inner {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 20px;
-  }
+    .callback-inner {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 20px;
+    }
 
-  .spinner {
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    border: 4px solid var(--md-sys-color-surface-container-highest);
-    border-top-color: var(--md-sys-color-primary);
-    animation: spin 0.8s linear infinite;
-  }
+    .spinner {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        border: 4px solid var(--md-sys-color-surface-container-highest);
+        border-top-color: var(--md-sys-color-primary);
+        animation: spin 0.8s linear infinite;
+    }
 
-  @keyframes spin {
-    to { transform: rotate(360deg); }
-  }
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
 </style>

@@ -3,690 +3,1516 @@ import Base from "../layouts/base.astro";
 ---
 
 <Base title="dashboard">
-  <div class="app" id="app">
-    <!-- topbar -->
-    <header class="topbar surface-low">
-      <button class="btn-icon" id="back-btn" aria-label="back to guild list" hidden>
-        <span class="icon">arrow_back</span>
-      </button>
-      <div class="topbar-title">
-        <span class="icon icon-sm icon-filled primary-color" aria-hidden="true">shield</span>
-        <span class="md-title-lg" id="topbar-title">dashboard</span>
-      </div>
-      <div class="topbar-actions">
-        <div class="user-chip" id="user-chip" hidden>
-          <img class="user-avatar" id="user-avatar" src="" alt="" width="32" height="32" />
-          <span class="md-label-lg" id="user-name"></span>
-        </div>
-        <button class="btn btn-text" id="logout-btn" hidden>
-          <span class="icon icon-sm">logout</span>
-          sign out
-        </button>
-      </div>
-    </header>
+    <div class="app" id="app">
+        <!-- topnav -->
+        <header class="topnav">
+            <div class="nav-brand">
+                <span class="icon icon-sm icon-filled" aria-hidden="true"
+                    >shield</span
+                >
+                <span class="brand-name">niskbot</span>
+            </div>
 
-    <!-- guild list -->
-    <section class="view" id="guild-view">
-      <div class="guild-view-inner">
-        <div class="guild-view-header">
-          <h2 class="md-headline-sm">select a server</h2>
-          <p class="md-body-md on-surface-variant">
-            only servers where you're an administrator are shown
-          </p>
-        </div>
-        <div class="guild-grid" id="guild-grid">
-          <div class="guild-loading" id="guild-loading">
-            <div class="spinner"></div>
-            <span class="md-body-md on-surface-variant">loading servers...</span>
-          </div>
-        </div>
-      </div>
-    </section>
+            <nav
+                class="nav-cats"
+                id="nav-cats"
+                role="tablist"
+                aria-label="settings categories"
+            >
+            </nav>
 
-    <!-- config editor -->
-    <section class="view" id="config-view" hidden>
-      <nav class="nav-rail" id="category-nav" aria-label="config categories"></nav>
-      <div class="config-panel">
-        <div class="config-panel-header">
-          <div>
-            <h2 class="md-title-lg" id="panel-title">server</h2>
-            <p class="md-body-sm on-surface-variant" id="panel-subtitle"></p>
-          </div>
-          <div class="panel-actions">
-            <button class="btn btn-filled-tonal" id="reset-btn" disabled>
-              discard
-            </button>
-            <button class="btn btn-filled" id="save-btn" disabled>
-              <span class="icon icon-sm">save</span>
-              save changes
-            </button>
-          </div>
+            <div class="nav-end">
+                <div class="server-switcher" id="server-switcher" hidden>
+                    <button
+                        class="server-btn"
+                        id="server-btn"
+                        aria-haspopup="listbox"
+                    >
+                        <img
+                            class="server-icon"
+                            id="server-icon"
+                            src=""
+                            alt=""
+                            hidden
+                        />
+                        <span
+                            class="server-fallback"
+                            id="server-fallback"
+                            hidden></span>
+                        <span class="server-name" id="server-name"></span>
+                        <span class="icon icon-sm" id="server-chevron"
+                            >expand_more</span
+                        >
+                    </button>
+                    <ul
+                        class="server-menu"
+                        id="server-menu"
+                        role="listbox"
+                        hidden
+                    >
+                    </ul>
+                </div>
+                <div class="user-chip" id="user-chip" hidden>
+                    <img
+                        class="user-avatar"
+                        id="user-avatar"
+                        src=""
+                        alt=""
+                        width="28"
+                        height="28"
+                    />
+                    <span class="md-label-md" id="user-name"></span>
+                </div>
+                <button class="btn btn-text" id="logout-btn" hidden
+                    >sign out</button
+                >
+            </div>
+        </header>
+
+        <!-- panel header (sticky, inside content area) -->
+        <div class="panel-header" id="panel-header" hidden>
+            <div class="panel-title-wrap">
+                <h1 class="md-title-lg" id="panel-title"></h1>
+                <span class="md-body-sm on-surface-variant" id="panel-subtitle"
+                ></span>
+            </div>
+            <div class="panel-actions">
+                <button class="btn btn-outlined" id="discard-btn" disabled
+                    >discard</button
+                >
+                <button class="btn btn-filled" id="save-btn" disabled>
+                    <span class="icon icon-sm">save</span>
+                    <span id="save-label">save</span>
+                </button>
+            </div>
         </div>
-        <div class="config-fields" id="config-fields"></div>
-      </div>
-    </section>
-  </div>
+
+        <!-- fields container -->
+        <main class="content" id="content">
+            <div class="fields-wrap" id="fields-wrap" hidden>
+                <div id="fields" class="fields"></div>
+            </div>
+            <div class="loading-state" id="loading-state">
+                <div class="spinner"></div>
+            </div>
+        </main>
+    </div>
 </Base>
 
 <script>
-  import { getToken, clearToken, login } from "../lib/auth";
-  import { getGuilds, getConfig, setConfig, type Guild } from "../lib/api";
-  import { CONFIG_CATEGORIES, type ConfigField, type ConfigCategory } from "../lib/config-meta";
+    import { getToken, clearToken, login } from "../lib/auth";
+    import {
+        getGuilds,
+        getConfig,
+        setConfig,
+        getChannels,
+        getRoles,
+        type Guild,
+        type Channel,
+        type Role,
+    } from "../lib/api";
+    import {
+        CONFIG_CATEGORIES,
+        type ConfigField,
+        type ConfigCategory,
+    } from "../lib/config-meta";
 
-  // --- state ---
-  let token = getToken();
-  let guilds: Guild[] = [];
-  let activeGuild: Guild | null = null;
-  let serverConfig: Record<string, string> = {};
-  let activeCategory: ConfigCategory = CONFIG_CATEGORIES[0]!;
-  let pendingChanges: Record<string, string | null> = {};
+    // --- state ---
+    let token = getToken();
+    let guilds: Guild[] = [];
+    let activeGuild: Guild | null = null;
+    let serverConfig: Record<string, string> = {};
+    let activeCategory: ConfigCategory = CONFIG_CATEGORIES[0]!;
+    let pendingChanges: Record<string, string | null> = {};
+    let channels: Channel[] = [];
+    let roles: Role[] = [];
+    let channelsLoaded = false;
+    let rolesLoaded = false;
 
-  // --- elements ---
-  const guildView    = el<HTMLElement>("guild-view");
-  const configView   = el<HTMLElement>("config-view");
-  const guildGrid    = el<HTMLElement>("guild-grid");
-  const guildLoading = el<HTMLElement>("guild-loading");
-  const categoryNav  = el<HTMLElement>("category-nav");
-  const configFields = el<HTMLElement>("config-fields");
-  const panelTitle   = el<HTMLElement>("panel-title");
-  const panelSub     = el<HTMLElement>("panel-subtitle");
-  const topbarTitle  = el<HTMLElement>("topbar-title");
-  const backBtn      = el<HTMLButtonElement>("back-btn");
-  const saveBtn      = el<HTMLButtonElement>("save-btn");
-  const resetBtn     = el<HTMLButtonElement>("reset-btn");
-  const logoutBtn    = el<HTMLButtonElement>("logout-btn");
-  const userChip     = el<HTMLElement>("user-chip");
-  const userName     = el<HTMLElement>("user-name");
-  const userAvatar   = el<HTMLImageElement>("user-avatar");
-
-  function el<T extends HTMLElement>(id: string): T {
-    return document.getElementById(id) as T;
-  }
-
-  // --- snackbar ---
-  let snackTimeout: ReturnType<typeof setTimeout> | null = null;
-  function snack(msg: string, isError = false): void {
-    const bar = document.getElementById("snackbar");
-    if (!bar) return;
-    bar.textContent = msg;
-    bar.style.background = isError
-      ? "var(--md-sys-color-error-container)"
-      : "var(--md-sys-color-inverse-surface)";
-    bar.style.color = isError
-      ? "var(--md-sys-color-on-error-container)"
-      : "var(--md-sys-color-inverse-on-surface)";
-    bar.classList.add("shown");
-    if (snackTimeout) clearTimeout(snackTimeout);
-    snackTimeout = setTimeout(() => bar.classList.remove("shown"), 3000);
-  }
-
-  // --- auth init ---
-  async function init(): Promise<void> {
-    if (!token) {
-      login();
-      return;
+    // --- snackbar ---
+    let snackTimeout: ReturnType<typeof setTimeout> | null = null;
+    function snack(msg: string, isError = false): void {
+        const bar = document.getElementById("snackbar");
+        if (!bar) return;
+        bar.textContent = msg;
+        bar.style.background = isError
+            ? "var(--md-sys-color-error-container)"
+            : "var(--md-sys-color-inverse-surface)";
+        bar.style.color = isError
+            ? "var(--md-sys-color-on-error-container)"
+            : "var(--md-sys-color-inverse-on-surface)";
+        bar.classList.add("shown");
+        if (snackTimeout) clearTimeout(snackTimeout);
+        snackTimeout = setTimeout(() => bar.classList.remove("shown"), 3000);
     }
-    logoutBtn.hidden = false;
-    logoutBtn.addEventListener("click", () => {
-      clearToken();
-      window.location.replace("/");
+
+    // --- helpers ---
+    function esc(s: string | null | undefined): string {
+        if (!s) return "";
+        return s
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;");
+    }
+
+    function el<T extends HTMLElement>(id: string): T {
+        return document.getElementById(id) as T;
+    }
+
+    function setLoading(loading: boolean): void {
+        el("loading-state").style.display = loading ? "flex" : "none";
+        el<HTMLElement>("fields-wrap").hidden = loading;
+    }
+
+    // --- auth init ---
+    async function init(): Promise<void> {
+        if (!token) {
+            login();
+            return;
+        }
+
+        el<HTMLButtonElement>("logout-btn").hidden = false;
+        el<HTMLButtonElement>("logout-btn").addEventListener("click", () => {
+            clearToken();
+            window.location.replace(import.meta.env.BASE_URL);
+        });
+
+        try {
+            const me = (await fetch("https://discord.com/api/v10/users/@me", {
+                headers: { authorization: `Bearer ${token}` },
+            }).then((r) => r.json())) as {
+                username: string;
+                id: string;
+                avatar: string | null;
+            };
+
+            el("user-chip").hidden = false;
+            el("user-name").textContent = me.username;
+            const avatar = el<HTMLImageElement>("user-avatar");
+            if (me.avatar) {
+                avatar.src = `https://cdn.discordapp.com/avatars/${me.id}/${me.avatar}.webp?size=64`;
+                avatar.alt = me.username;
+            } else {
+                avatar.hidden = true;
+            }
+        } catch {}
+
+        await loadGuilds();
+    }
+
+    async function loadGuilds(): Promise<void> {
+        try {
+            guilds = await getGuilds();
+        } catch {
+            snack("failed to load servers", true);
+            return;
+        }
+
+        if (!guilds.length) {
+            snack("no accessible servers found", true);
+            return;
+        }
+
+        // auto-select first guild
+        await selectGuild(guilds[0]!);
+
+        // show switcher only if there are multiple guilds
+        if (guilds.length > 1) {
+            el("server-switcher").hidden = false;
+            renderServerMenu();
+        }
+    }
+
+    function renderServerMenu(): void {
+        const menu = el("server-menu");
+        menu.innerHTML = guilds
+            .map((g) => {
+                const icon = g.icon
+                    ? `<img src="https://cdn.discordapp.com/icons/${g.id}/${g.icon}.webp?size=32" alt="" class="sm-icon" />`
+                    : `<span class="sm-fallback">${esc(g.name[0])}</span>`;
+                return `<li role="option" class="sm-item ${activeGuild?.id === g.id ? "active" : ""}" data-id="${g.id}">
+        ${icon}
+        <span>${esc(g.name)}</span>
+      </li>`;
+            })
+            .join("");
+
+        menu.querySelectorAll<HTMLLIElement>("[data-id]").forEach((item) => {
+            item.addEventListener("click", async () => {
+                closeServerMenu();
+                const guild = guilds.find((g) => g.id === item.dataset["id"]);
+                if (guild && guild.id !== activeGuild?.id)
+                    await selectGuild(guild);
+            });
+        });
+    }
+
+    function openServerMenu(): void {
+        const menu = el("server-menu");
+        const btn = el("server-btn");
+        menu.hidden = false;
+        btn.setAttribute("aria-expanded", "true");
+        el("server-chevron").textContent = "expand_less";
+        renderServerMenu();
+    }
+
+    function closeServerMenu(): void {
+        const menu = el("server-menu");
+        const btn = el("server-btn");
+        menu.hidden = true;
+        btn.setAttribute("aria-expanded", "false");
+        el("server-chevron").textContent = "expand_more";
+    }
+
+    el("server-btn").addEventListener("click", () => {
+        el("server-menu").hidden ? openServerMenu() : closeServerMenu();
     });
 
-    try {
-      const me = await fetch("https://discord.com/api/v10/users/@me", {
-        headers: { authorization: `Bearer ${token}` },
-      }).then(r => r.json()) as { username: string; id: string; avatar: string | null };
-
-      userChip.hidden = false;
-      userName.textContent = me.username;
-      if (me.avatar) {
-        userAvatar.src = `https://cdn.discordapp.com/avatars/${me.id}/${me.avatar}.webp?size=64`;
-        userAvatar.alt = me.username;
-      } else {
-        userAvatar.style.display = "none";
-      }
-    } catch {
-      // non-critical
-    }
-
-    await loadGuilds();
-  }
-
-  async function loadGuilds(): Promise<void> {
-    try {
-      guilds = await getGuilds();
-    } catch (e) {
-      snack("failed to load servers", true);
-      return;
-    }
-    renderGuilds();
-  }
-
-  function renderGuilds(): void {
-    guildLoading.remove();
-    if (!guilds.length) {
-      guildGrid.innerHTML =
-        `<div class="guild-empty md-body-md on-surface-variant">
-           no servers found where you're an administrator
-         </div>`;
-      return;
-    }
-
-    guildGrid.innerHTML = guilds.map(g => {
-      const icon = g.icon
-        ? `<img class="guild-icon" src="https://cdn.discordapp.com/icons/${g.id}/${g.icon}.webp?size=64" alt="" />`
-        : `<div class="guild-icon-fallback md-headline-sm">${g.name[0]?.toUpperCase() ?? "?"}</div>`;
-      const badge = g.in_server
-        ? `<span class="badge badge-primary">configured</span>`
-        : `<span class="badge badge-surface">not in server</span>`;
-      return `
-        <button class="guild-card card state-layer" data-guild="${g.id}">
-          ${icon}
-          <div class="guild-info">
-            <span class="guild-name md-title-md">${esc(g.name)}</span>
-            ${badge}
-          </div>
-          <span class="icon on-surface-variant">chevron_right</span>
-        </button>`;
-    }).join("");
-
-    guildGrid.querySelectorAll<HTMLButtonElement>("[data-guild]").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const guildId = btn.dataset["guild"] ?? "";
-        const guild = guilds.find(g => g.id === guildId);
-        if (guild) void selectGuild(guild);
-      });
+    document.addEventListener("click", (e) => {
+        if (!el("server-switcher").contains(e.target as Node))
+            closeServerMenu();
     });
-  }
 
-  async function selectGuild(guild: Guild): Promise<void> {
-    activeGuild = guild;
-    pendingChanges = {};
+    async function selectGuild(guild: Guild): Promise<void> {
+        activeGuild = guild;
+        pendingChanges = {};
+        channelsLoaded = false;
+        rolesLoaded = false;
+        channels = [];
+        roles = [];
 
-    topbarTitle.textContent = guild.name;
-    backBtn.hidden = false;
-    guildView.hidden = true;
-    configView.hidden = false;
+        // update server chip
+        const icon = el<HTMLImageElement>("server-icon");
+        const fallback = el("server-fallback");
+        if (guild.icon) {
+            icon.src = `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.webp?size=64`;
+            icon.hidden = false;
+            fallback.hidden = true;
+        } else {
+            icon.hidden = true;
+            fallback.textContent = guild.name[0]?.toUpperCase() ?? "?";
+            fallback.hidden = false;
+        }
+        el("server-name").textContent = guild.name;
+        el("server-switcher").hidden = guilds.length <= 1;
 
-    renderCategoryNav();
-    await loadConfig();
-  }
-
-  async function loadConfig(): Promise<void> {
-    if (!activeGuild) return;
-    configFields.innerHTML = `<div class="config-loading"><div class="spinner"></div></div>`;
-    try {
-      serverConfig = await getConfig(activeGuild.id);
-    } catch {
-      snack("failed to load config", true);
-      return;
+        renderCategoryNav();
+        el("panel-header").hidden = false;
+        await loadConfig();
     }
-    renderCategory(activeCategory);
-    updateSaveState();
-  }
 
-  function renderCategoryNav(): void {
-    categoryNav.innerHTML = CONFIG_CATEGORIES.map(cat => `
+    async function loadConfig(): Promise<void> {
+        if (!activeGuild) return;
+        setLoading(true);
+        try {
+            serverConfig = await getConfig(activeGuild.id);
+        } catch {
+            snack("failed to load config", true);
+            setLoading(false);
+            return;
+        }
+
+        // preload channels and roles in parallel
+        if (!channelsLoaded && !rolesLoaded) {
+            try {
+                [channels, roles] = await Promise.all([
+                    getChannels(activeGuild.id),
+                    getRoles(activeGuild.id),
+                ]);
+                channelsLoaded = true;
+                rolesLoaded = true;
+            } catch {
+                snack("failed to load channels/roles", true);
+            }
+        }
+
+        setLoading(false);
+        await switchCategory(activeCategory, false);
+        updateSaveState();
+    }
+
+    function renderCategoryNav(): void {
+        const nav = el("nav-cats");
+        nav.innerHTML = CONFIG_CATEGORIES.map(
+            (cat) => `
       <button
-        class="nav-rail-item ${cat.key === activeCategory.key ? "active" : ""}"
+        class="cat-tab ${cat.key === activeCategory.key ? "active" : ""}"
         data-cat="${cat.key}"
-        aria-label="${cat.label}"
-        title="${cat.label}"
+        role="tab"
+        aria-selected="${cat.key === activeCategory.key}"
       >
-        <span class="nav-rail-indicator">
-          <span class="icon">${cat.icon}</span>
-        </span>
-        <span class="md-label-sm">${cat.label}</span>
+        <span class="icon icon-sm">${cat.icon}</span>
+        ${cat.label}
       </button>
-    `).join("");
+    `,
+        ).join("");
 
-    categoryNav.querySelectorAll<HTMLButtonElement>("[data-cat]").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const key = btn.dataset["cat"] ?? "";
-        const cat = CONFIG_CATEGORIES.find(c => c.key === key);
-        if (cat) switchCategory(cat);
-      });
-    });
-  }
+        nav.querySelectorAll<HTMLButtonElement>("[data-cat]").forEach((btn) => {
+            btn.addEventListener("click", () => {
+                const key = btn.dataset["cat"] ?? "";
+                const cat = CONFIG_CATEGORIES.find((c) => c.key === key);
+                if (cat && cat.key !== activeCategory.key)
+                    void switchCategory(cat);
+            });
+        });
+    }
 
-  function switchCategory(cat: ConfigCategory): void {
-    activeCategory = cat;
-    categoryNav.querySelectorAll(".nav-rail-item").forEach(btn => {
-      btn.classList.toggle("active", (btn as HTMLElement).dataset["cat"] === cat.key);
-    });
-    renderCategory(cat);
-  }
+    async function switchCategory(
+        cat: ConfigCategory,
+        animate = true,
+    ): Promise<void> {
+        activeCategory = cat;
 
-  function renderCategory(cat: ConfigCategory): void {
-    panelTitle.textContent = cat.label;
-    panelSub.textContent = `${cat.fields.length} setting${cat.fields.length !== 1 ? "s" : ""}`;
-    configFields.innerHTML = cat.fields.map(renderField).join("");
+        // update active tab
+        el("nav-cats")
+            .querySelectorAll(".cat-tab")
+            .forEach((btn) => {
+                const active = (btn as HTMLElement).dataset["cat"] === cat.key;
+                btn.classList.toggle("active", active);
+                btn.setAttribute("aria-selected", String(active));
+            });
 
-    configFields.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
-      "input[data-key], textarea[data-key]"
-    ).forEach(input => {
-      input.addEventListener("change", () => onFieldChange(input));
-      input.addEventListener("input", () => onFieldChange(input));
-    });
-  }
+        el("panel-title").textContent = cat.label;
+        el("panel-subtitle").textContent =
+            `${cat.fields.length} setting${cat.fields.length !== 1 ? "s" : ""}`;
 
-  function renderField(field: ConfigField): string {
-    const raw = pendingChanges[field.key] !== undefined
-      ? (pendingChanges[field.key] ?? "")
-      : (serverConfig[field.key] ?? "");
+        const fieldsEl = el("fields");
 
-    if (field.type === "toggle") {
-      const checked = raw ? raw === "true" : field.default === "true";
-      return `
-        <div class="field-row card-outlined">
-          <label class="switch-wrap" for="field-${field.key}">
+        if (animate) {
+            fieldsEl.classList.add("fields-exit");
+            await new Promise((r) => setTimeout(r, 120));
+            fieldsEl.classList.remove("fields-exit");
+        }
+
+        fieldsEl.innerHTML = cat.fields.map((f) => renderField(f)).join("");
+        bindFieldEvents();
+        fieldsEl.classList.add("fields-enter");
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() =>
+                fieldsEl.classList.remove("fields-enter"),
+            );
+        });
+    }
+
+    function currentValue(field: ConfigField): string {
+        return pendingChanges[field.key] !== undefined
+            ? (pendingChanges[field.key] ?? "")
+            : (serverConfig[field.key] ?? "");
+    }
+
+    function renderField(field: ConfigField): string {
+        const val = currentValue(field);
+        const isDirty = pendingChanges[field.key] !== undefined;
+        const dirtyClass = isDirty ? "field-row--dirty" : "";
+
+        if (field.type === "toggle") {
+            const checked = val ? val === "true" : field.default === "true";
+            return `
+        <div class="field-row field-row--toggle ${dirtyClass}">
+          <label class="switch-wrap" for="f-${field.key}">
             <div class="switch-labels">
               <span class="md-label-lg">${esc(field.label)}</span>
               <span class="md-body-sm on-surface-variant">${esc(field.hint)}</span>
             </div>
             <label class="switch">
-              <input
-                type="checkbox"
-                id="field-${field.key}"
-                data-key="${field.key}"
-                data-type="toggle"
-                ${checked ? "checked" : ""}
-              />
-              <span class="switch-track">
-                <span class="switch-thumb"></span>
-              </span>
+              <input type="checkbox" id="f-${field.key}" data-key="${field.key}" data-type="toggle" ${checked ? "checked" : ""} />
+              <span class="switch-track"><span class="switch-thumb"></span></span>
             </label>
           </label>
         </div>`;
-    }
+        }
 
-    const isArea = field.type === "textarea";
-    const inputType = field.type === "number" ? "number" : "text";
-    const value = esc(raw);
-    const placeholder = field.default ? `${esc(field.hint)} (default: ${esc(field.default)})` : esc(field.hint);
-    const isDirty = pendingChanges[field.key] !== undefined;
+        if (field.type === "channel") {
+            return `
+        <div class="field-row ${dirtyClass}">
+          <label class="field-label" for="f-${field.key}">${esc(field.label)}</label>
+          <select class="md-select" id="f-${field.key}" data-key="${field.key}" data-type="channel">
+            <option value="">— none —</option>
+            ${renderChannelOptions(val)}
+          </select>
+          <span class="field-hint">${esc(field.hint)}</span>
+        </div>`;
+        }
 
-    return `
-      <div class="field-row field-wrap ${isDirty ? "field-dirty" : ""}">
-        <label class="field-label" for="field-${field.key}">${esc(field.label)}</label>
-        <div class="field">
-          ${isArea
-            ? `<textarea id="field-${field.key}" data-key="${field.key}" data-type="${field.type}" placeholder="${placeholder}" rows="3">${value}</textarea>`
-            : `<input id="field-${field.key}" type="${inputType}" data-key="${field.key}" data-type="${field.type}" placeholder="${placeholder}" value="${value}" />`
+        if (field.type === "role") {
+            return `
+        <div class="field-row ${dirtyClass}">
+          <label class="field-label" for="f-${field.key}">${esc(field.label)}</label>
+          <select class="md-select" id="f-${field.key}" data-key="${field.key}" data-type="role">
+            <option value="">— none —</option>
+            ${renderRoleOptions(val)}
+          </select>
+          <span class="field-hint">${esc(field.hint)}</span>
+        </div>`;
+        }
+
+        if (field.type === "roles") {
+            return `
+        <div class="field-row ${dirtyClass}">
+          <span class="field-label">${esc(field.label)}</span>
+          <div class="multi-select" id="f-${field.key}" data-key="${field.key}" data-type="roles" data-value="${esc(val)}" tabindex="0">
+            <div class="ms-tags" id="ms-tags-${field.key}"></div>
+            <button class="ms-add-btn" type="button" data-ms="${field.key}">
+              <span class="icon icon-sm">add</span> add role
+            </button>
+            <div class="ms-dropdown" id="ms-drop-${field.key}" hidden></div>
+          </div>
+          <span class="field-hint">${esc(field.hint)}</span>
+        </div>`;
+        }
+
+        if (field.type === "channels") {
+            return `
+        <div class="field-row ${dirtyClass}">
+          <span class="field-label">${esc(field.label)}</span>
+          <div class="multi-select" id="f-${field.key}" data-key="${field.key}" data-type="channels" data-value="${esc(val)}" tabindex="0">
+            <div class="ms-tags" id="ms-tags-${field.key}"></div>
+            <button class="ms-add-btn" type="button" data-ms="${field.key}">
+              <span class="icon icon-sm">add</span> add channel
+            </button>
+            <div class="ms-dropdown" id="ms-drop-${field.key}" hidden></div>
+          </div>
+          <span class="field-hint">${esc(field.hint)}</span>
+        </div>`;
+        }
+
+        const isArea = field.type === "textarea";
+        const inputType = field.type === "number" ? "number" : "text";
+        const placeholder = field.default
+            ? `${esc(field.hint)} (default: ${esc(field.default)})`
+            : esc(field.hint);
+
+        return `
+      <div class="field-row ${dirtyClass}">
+        <label class="field-label" for="f-${field.key}">${esc(field.label)}</label>
+        <div class="field ${isDirty ? "field--dirty" : ""}">
+          ${
+              isArea
+                  ? `<textarea id="f-${field.key}" data-key="${field.key}" data-type="${field.type}" placeholder="${placeholder}" rows="3">${esc(val)}</textarea>`
+                  : `<input id="f-${field.key}" type="${inputType}" data-key="${field.key}" data-type="${field.type}" placeholder="${placeholder}" value="${esc(val)}" />`
           }
-          ${raw && raw !== field.default
-            ? `<button class="btn-icon clear-btn" data-clear="${field.key}" aria-label="clear field">
-                <span class="icon icon-sm">close</span>
-               </button>`
-            : ""
-          }
+          ${val ? `<button class="clear-btn" data-clear="${field.key}" aria-label="clear"><span class="icon icon-sm">close</span></button>` : ""}
         </div>
         ${field.hint ? `<span class="field-hint">${esc(field.hint)}</span>` : ""}
       </div>`;
-  }
-
-  function onFieldChange(input: HTMLInputElement | HTMLTextAreaElement): void {
-    const key = input.dataset["key"] ?? "";
-    if (!key) return;
-    const fieldType = input.dataset["type"] ?? "";
-    let value: string;
-    if (fieldType === "toggle") {
-      value = (input as HTMLInputElement).checked ? "true" : "false";
-    } else {
-      value = input.value.trim();
     }
 
-    const original = serverConfig[key];
-    if (value === original || (!value && !original)) {
-      delete pendingChanges[key];
-    } else {
-      pendingChanges[key] = value || null;
-    }
-
-    updateSaveState();
-    refreshClearBtn(key, value);
-  }
-
-  function refreshClearBtn(key: string, value: string): void {
-    const existing = configFields.querySelector<HTMLButtonElement>(`[data-clear="${key}"]`);
-    const input = configFields.querySelector<HTMLElement>(`[data-key="${key}"]`);
-    const fieldDiv = input?.closest(".field");
-    if (!fieldDiv) return;
-    if (value && !existing) {
-      const btn = document.createElement("button");
-      btn.className = "btn-icon clear-btn";
-      btn.dataset["clear"] = key;
-      btn.setAttribute("aria-label", "clear field");
-      btn.innerHTML = `<span class="icon icon-sm">close</span>`;
-      fieldDiv.appendChild(btn);
-      btn.addEventListener("click", () => clearField(key));
-    } else if (!value && existing) {
-      existing.remove();
-    }
-  }
-
-  function clearField(key: string): void {
-    const input = configFields.querySelector<HTMLInputElement | HTMLTextAreaElement>(`[data-key="${key}"]`);
-    if (!input) return;
-    input.value = "";
-    pendingChanges[key] = null;
-    updateSaveState();
-    refreshClearBtn(key, "");
-  }
-
-  function updateSaveState(): void {
-    const hasChanges = Object.keys(pendingChanges).length > 0;
-    saveBtn.disabled = !hasChanges;
-    resetBtn.disabled = !hasChanges;
-  }
-
-  async function saveChanges(): Promise<void> {
-    if (!activeGuild || !Object.keys(pendingChanges).length) return;
-    saveBtn.disabled = true;
-    saveBtn.textContent = "saving...";
-    try {
-      await setConfig(activeGuild.id, pendingChanges);
-      for (const [k, v] of Object.entries(pendingChanges)) {
-        if (v) {
-          serverConfig[k] = v;
-        } else {
-          delete serverConfig[k];
+    function renderChannelOptions(selected: string): string {
+        if (!channels.length)
+            return selected
+                ? `<option value="${esc(selected)}" selected>#${esc(selected)}</option>`
+                : "";
+        let out = "";
+        let lastCat = "";
+        for (const ch of channels) {
+            if (ch.category && ch.category !== lastCat) {
+                if (lastCat) out += "</optgroup>";
+                out += `<optgroup label="${esc(ch.category)}">`;
+                lastCat = ch.category;
+            } else if (!ch.category && lastCat) {
+                out += "</optgroup>";
+                lastCat = "";
+            }
+            out += `<option value="${ch.id}" ${ch.id === selected ? "selected" : ""}># ${esc(ch.name)}</option>`;
         }
-      }
-      pendingChanges = {};
-      snack("changes saved");
-      renderCategory(activeCategory);
-    } catch {
-      snack("failed to save changes", true);
-    } finally {
-      saveBtn.disabled = false;
-      saveBtn.innerHTML = `<span class="icon icon-sm">save</span> save changes`;
-      updateSaveState();
+        if (lastCat) out += "</optgroup>";
+        return out;
     }
-  }
 
-  function esc(s: string | null | undefined): string {
-    if (!s) return "";
-    return s
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;");
-  }
+    function renderRoleOptions(selected: string): string {
+        if (!roles.length)
+            return selected
+                ? `<option value="${esc(selected)}" selected>@${esc(selected)}</option>`
+                : "";
+        return roles
+            .map(
+                (r) =>
+                    `<option value="${r.id}" ${r.id === selected ? "selected" : ""} data-color="${esc(r.color)}">@ ${esc(r.name)}</option>`,
+            )
+            .join("");
+    }
 
-  // --- event wiring ---
-  backBtn.addEventListener("click", () => {
-    activeGuild = null;
-    pendingChanges = {};
-    configView.hidden = true;
-    guildView.hidden = false;
-    backBtn.hidden = true;
-    topbarTitle.textContent = "dashboard";
-  });
+    function bindFieldEvents(): void {
+        const fields = el("fields");
 
-  saveBtn.addEventListener("click", () => void saveChanges());
+        // toggles
+        fields
+            .querySelectorAll<HTMLInputElement>("input[data-type='toggle']")
+            .forEach((input) => {
+                input.addEventListener("change", () =>
+                    onFieldChange(
+                        input.dataset["key"] ?? "",
+                        input.checked ? "true" : "false",
+                    ),
+                );
+            });
 
-  resetBtn.addEventListener("click", () => {
-    pendingChanges = {};
-    renderCategory(activeCategory);
-    updateSaveState();
-  });
+        // selects
+        fields
+            .querySelectorAll<HTMLSelectElement>("select.md-select")
+            .forEach((sel) => {
+                sel.addEventListener("change", () =>
+                    onFieldChange(sel.dataset["key"] ?? "", sel.value),
+                );
+            });
 
-  configFields.addEventListener("click", (e) => {
-    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-clear]");
-    if (btn?.dataset["clear"]) clearField(btn.dataset["clear"]);
-  });
+        // text/textarea/number
+        fields
+            .querySelectorAll<
+                HTMLInputElement | HTMLTextAreaElement
+            >("input[data-key]:not([data-type='toggle']), textarea[data-key]")
+            .forEach((input) => {
+                input.addEventListener("input", () =>
+                    onFieldChange(
+                        input.dataset["key"] ?? "",
+                        (input as HTMLInputElement).value.trim(),
+                    ),
+                );
+            });
 
-  void init();
+        // clear buttons
+        fields
+            .querySelectorAll<HTMLButtonElement>("[data-clear]")
+            .forEach((btn) => {
+                btn.addEventListener("click", () =>
+                    clearField(btn.dataset["clear"] ?? ""),
+                );
+            });
+
+        // multi-select
+        fields.querySelectorAll<HTMLElement>(".multi-select").forEach((ms) => {
+            const key = ms.dataset["key"] ?? "";
+            const type = ms.dataset["type"] as "roles" | "channels";
+            const valStr = ms.dataset["value"] ?? "";
+            const ids = valStr
+                ? valStr
+                      .split(",")
+                      .map((s) => s.trim())
+                      .filter(Boolean)
+                : [];
+            renderMultiTags(key, ids, type);
+        });
+
+        fields
+            .querySelectorAll<HTMLButtonElement>("[data-ms]")
+            .forEach((btn) => {
+                btn.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    toggleMultiDropdown(btn.dataset["ms"] ?? "");
+                });
+            });
+
+        document.addEventListener("click", closeAllDropdowns, { once: false });
+    }
+
+    function renderMultiTags(
+        key: string,
+        ids: string[],
+        type: "roles" | "channels",
+    ): void {
+        const tagsEl = document.getElementById(`ms-tags-${key}`);
+        if (!tagsEl) return;
+        const source = type === "roles" ? roles : channels;
+        tagsEl.innerHTML = ids
+            .map((id) => {
+                const item = source.find((x) => x.id === id);
+                const label = item ? item.name : id;
+                const dot =
+                    type === "roles" && item
+                        ? `<span class="role-dot" style="background:${(item as Role).color}"></span>`
+                        : "";
+                const prefix = type === "channels" ? "# " : "@ ";
+                return `<span class="ms-chip">
+        ${dot}${prefix}${esc(label)}
+        <button class="ms-remove" data-key="${key}" data-id="${id}" aria-label="remove">
+          <span class="icon icon-sm">close</span>
+        </button>
+      </span>`;
+            })
+            .join("");
+
+        tagsEl
+            .querySelectorAll<HTMLButtonElement>(".ms-remove")
+            .forEach((btn) => {
+                btn.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    const k = btn.dataset["key"] ?? "";
+                    const id = btn.dataset["id"] ?? "";
+                    const ms = document.getElementById(`f-${k}`);
+                    if (!ms) return;
+                    const current = ms.dataset["value"] ?? "";
+                    const updated = current
+                        .split(",")
+                        .filter((s) => s.trim() !== id)
+                        .join(",");
+                    ms.dataset["value"] = updated;
+                    onFieldChange(k, updated);
+                    renderMultiTags(
+                        k,
+                        updated ? updated.split(",").filter(Boolean) : [],
+                        type,
+                    );
+                });
+            });
+    }
+
+    function toggleMultiDropdown(key: string): void {
+        const drop = document.getElementById(`ms-drop-${key}`);
+        const ms = document.getElementById(`f-${key}`);
+        if (!drop || !ms) return;
+        if (!drop.hidden) {
+            drop.hidden = true;
+            return;
+        }
+
+        const type = ms.dataset["type"] as "roles" | "channels";
+        const current = ms.dataset["value"] ?? "";
+        const selected = new Set(current.split(",").filter(Boolean));
+        const source = type === "roles" ? roles : channels;
+
+        if (!source.length) {
+            drop.innerHTML = `<div class="ms-empty">no ${type} found</div>`;
+        } else {
+            const prefix = type === "channels" ? "#" : "@";
+            drop.innerHTML = source
+                .map((item) => {
+                    const isSelected = selected.has(item.id);
+                    const dot =
+                        type === "roles"
+                            ? `<span class="role-dot" style="background:${(item as Role).color}"></span>`
+                            : "";
+                    return `<div class="ms-option ${isSelected ? "ms-option--selected" : ""}" data-key="${key}" data-id="${item.id}" data-type="${type}" role="option" aria-selected="${isSelected}">
+          ${dot}
+          <span>${prefix} ${esc(item.name)}</span>
+          ${isSelected ? '<span class="icon icon-sm">check</span>' : ""}
+        </div>`;
+                })
+                .join("");
+        }
+
+        drop.hidden = false;
+        drop.querySelectorAll<HTMLElement>(".ms-option").forEach((opt) => {
+            opt.addEventListener("click", (e) => {
+                e.stopPropagation();
+                const k = opt.dataset["key"] ?? "";
+                const id = opt.dataset["id"] ?? "";
+                const t = opt.dataset["type"] as "roles" | "channels";
+                const msEl = document.getElementById(`f-${k}`);
+                if (!msEl) return;
+                const cur = msEl.dataset["value"] ?? "";
+                const ids = new Set(cur.split(",").filter(Boolean));
+                ids.has(id) ? ids.delete(id) : ids.add(id);
+                const updated = [...ids].join(",");
+                msEl.dataset["value"] = updated;
+                onFieldChange(k, updated);
+                renderMultiTags(k, [...ids], t);
+                toggleMultiDropdown(k);
+            });
+        });
+    }
+
+    function closeAllDropdowns(): void {
+        document.querySelectorAll<HTMLElement>(".ms-dropdown").forEach((d) => {
+            d.hidden = true;
+        });
+    }
+
+    function onFieldChange(key: string, value: string): void {
+        const original = serverConfig[key];
+        if (value === original || (!value && !original)) {
+            delete pendingChanges[key];
+        } else {
+            pendingChanges[key] = value || null;
+        }
+        const row = document
+            .getElementById(`f-${key}`)
+            ?.closest<HTMLElement>(".field-row");
+        if (row)
+            row.classList.toggle(
+                "field-row--dirty",
+                pendingChanges[key] !== undefined || key in pendingChanges,
+            );
+        updateSaveState();
+    }
+
+    function clearField(key: string): void {
+        const input = document.querySelector<
+            HTMLInputElement | HTMLTextAreaElement
+        >(`[data-key="${key}"]`);
+        if (!input) return;
+        (input as HTMLInputElement).value = "";
+        pendingChanges[key] = null;
+        const row = input.closest<HTMLElement>(".field-row");
+        if (row) row.classList.add("field-row--dirty");
+        updateSaveState();
+        const clearBtn = document.querySelector<HTMLButtonElement>(
+            `[data-clear="${key}"]`,
+        );
+        if (clearBtn) clearBtn.remove();
+    }
+
+    function updateSaveState(): void {
+        const hasChanges = Object.keys(pendingChanges).length > 0;
+        el<HTMLButtonElement>("save-btn").disabled = !hasChanges;
+        el<HTMLButtonElement>("discard-btn").disabled = !hasChanges;
+    }
+
+    async function saveChanges(): Promise<void> {
+        if (!activeGuild || !Object.keys(pendingChanges).length) return;
+        const saveBtn = el<HTMLButtonElement>("save-btn");
+        saveBtn.disabled = true;
+        el("save-label").textContent = "saving...";
+        try {
+            await setConfig(activeGuild.id, pendingChanges);
+            for (const [k, v] of Object.entries(pendingChanges)) {
+                if (v) {
+                    serverConfig[k] = v;
+                } else {
+                    delete serverConfig[k];
+                }
+            }
+            pendingChanges = {};
+            snack("changes saved");
+            await switchCategory(activeCategory, false);
+        } catch {
+            snack("failed to save changes", true);
+        } finally {
+            saveBtn.disabled = false;
+            el("save-label").textContent = "save";
+            updateSaveState();
+        }
+    }
+
+    el("save-btn").addEventListener("click", () => void saveChanges());
+    el("discard-btn").addEventListener("click", () => {
+        pendingChanges = {};
+        void switchCategory(activeCategory, false);
+        updateSaveState();
+    });
+
+    void init();
 </script>
 
 <style>
-  .app {
-    display: flex;
-    flex-direction: column;
-    min-height: 100svh;
-  }
-
-  /* topbar */
-  .topbar {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 0 16px;
-    height: 64px;
-    border-bottom: 1px solid var(--md-sys-color-outline-variant);
-    flex-shrink: 0;
-    position: sticky;
-    top: 0;
-    z-index: 10;
-  }
-
-  .topbar-title {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex: 1;
-    min-width: 0;
-  }
-
-  .topbar-actions {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .user-chip {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 4px 12px 4px 4px;
-    border-radius: var(--md-shape-full);
-    background: var(--md-sys-color-surface-container);
-  }
-
-  .user-avatar {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    object-fit: cover;
-  }
-
-  /* views */
-  .view {
-    flex: 1;
-    display: flex;
-    min-height: 0;
-  }
-
-  /* guild list */
-  .guild-view-inner {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 32px;
-    padding: 40px;
-    max-width: 1100px;
-    margin: 0 auto;
-    width: 100%;
-  }
-
-  .guild-view-header {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .guild-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 16px;
-  }
-
-  .guild-loading,
-  .guild-empty {
-    grid-column: 1 / -1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 16px;
-    padding: 48px;
-  }
-
-  .guild-card {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    padding: 20px;
-    background: var(--md-sys-color-surface-container);
-    border: none;
-    border-radius: var(--md-shape-xl);
-    cursor: pointer;
-    text-align: left;
-    font-family: inherit;
-    color: var(--md-sys-color-on-surface);
-    transition: background var(--md-duration-short);
-  }
-
-  .guild-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: var(--md-shape-md);
-    object-fit: cover;
-    flex-shrink: 0;
-  }
-
-  .guild-icon-fallback {
-    width: 48px;
-    height: 48px;
-    border-radius: var(--md-shape-md);
-    background: var(--md-sys-color-primary-container);
-    color: var(--md-sys-color-on-primary-container);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-
-  .guild-info {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    min-width: 0;
-  }
-
-  .guild-name {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  /* config layout */
-  #config-view {
-    overflow: hidden;
-  }
-
-  .nav-rail {
-    flex-shrink: 0;
-    overflow-y: auto;
-    height: calc(100svh - 64px);
-  }
-
-  .config-panel {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-    overflow-y: auto;
-    height: calc(100svh - 64px);
-  }
-
-  .config-panel-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    padding: 28px 32px 24px;
-    border-bottom: 1px solid var(--md-sys-color-outline-variant);
-    position: sticky;
-    top: 0;
-    background: var(--md-sys-color-surface);
-    z-index: 5;
-    flex-shrink: 0;
-  }
-
-  .panel-actions {
-    display: flex;
-    gap: 12px;
-  }
-
-  .config-fields {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    padding: 24px 32px 40px;
-  }
-
-  .config-loading {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 80px;
-  }
-
-  .field-row {
-    padding: 16px;
-    border-radius: var(--md-shape-lg);
-  }
-
-  .field-dirty .field {
-    border-color: var(--md-sys-color-primary);
-  }
-
-  .clear-btn {
-    color: var(--md-sys-color-on-surface-variant);
-    opacity: 0.7;
-  }
-
-  .clear-btn:hover { opacity: 1; }
-
-  /* spinner */
-  .spinner {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    border: 3px solid var(--md-sys-color-surface-container-highest);
-    border-top-color: var(--md-sys-color-primary);
-    animation: spin 0.8s linear infinite;
-  }
-
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  /* responsive */
-  @media (max-width: 720px) {
-    .guild-view-inner { padding: 24px 16px; }
-
-    .config-panel-header {
-      flex-direction: column;
-      align-items: flex-start;
-      padding: 20px 16px;
+    .app {
+        display: flex;
+        flex-direction: column;
+        min-height: 100svh;
+        animation: app-in 0.3s var(--md-easing-standard) both;
     }
 
-    .config-fields { padding: 16px 16px 32px; }
-
-    .nav-rail {
-      width: 64px;
+    @keyframes app-in {
+        from {
+            opacity: 0;
+            transform: translateY(6px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
 
-    .nav-rail .md-label-sm { display: none; }
-    .nav-rail-item { padding: 8px 0; }
-
-    .topbar-actions .btn { display: none; }
-  }
-
-  @media (max-width: 480px) {
-    .guild-grid {
-      grid-template-columns: 1fr;
+    .topnav {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        display: flex;
+        align-items: center;
+        gap: 0;
+        height: 60px;
+        padding: 0 20px;
+        background: var(--md-sys-color-surface-container-low);
+        border-bottom: 1px solid var(--md-sys-color-outline-variant);
+        flex-shrink: 0;
     }
-  }
+
+    .nav-brand {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--md-sys-color-primary);
+        flex-shrink: 0;
+        margin-right: 24px;
+    }
+
+    .brand-name {
+        font-size: 0.9375rem;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        color: var(--md-sys-color-on-surface);
+    }
+
+    .nav-cats {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        overflow-x: auto;
+        flex: 1;
+        scrollbar-width: none;
+        padding: 0 8px;
+        min-width: 0;
+    }
+
+    .nav-cats::-webkit-scrollbar {
+        display: none;
+    }
+
+    .cat-tab {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 14px;
+        border: none;
+        border-radius: var(--md-shape-full);
+        background: transparent;
+        color: var(--md-sys-color-on-surface-variant);
+        font-family: inherit;
+        font-size: 0.8125rem;
+        font-weight: 500;
+        cursor: pointer;
+        white-space: nowrap;
+        transition:
+            background var(--md-duration-short),
+            color var(--md-duration-short);
+        position: relative;
+        flex-shrink: 0;
+    }
+
+    .cat-tab:hover {
+        background: color-mix(
+            in srgb,
+            var(--md-sys-color-on-surface) 8%,
+            transparent
+        );
+        color: var(--md-sys-color-on-surface);
+    }
+
+    .cat-tab.active {
+        background: var(--md-sys-color-secondary-container);
+        color: var(--md-sys-color-on-secondary-container);
+    }
+
+    .cat-tab.active .icon {
+        font-variation-settings:
+            "FILL" 1,
+            "wght" 400,
+            "GRAD" 0,
+            "opsz" 20;
+    }
+
+    .nav-end {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-left: 16px;
+        flex-shrink: 0;
+    }
+
+    .server-switcher {
+        position: relative;
+    }
+
+    .server-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 5px 10px 5px 6px;
+        background: var(--md-sys-color-surface-container);
+        border: 1px solid var(--md-sys-color-outline-variant);
+        border-radius: var(--md-shape-full);
+        cursor: pointer;
+        font-family: inherit;
+        font-size: 0.8125rem;
+        font-weight: 500;
+        color: var(--md-sys-color-on-surface);
+        transition:
+            background var(--md-duration-short),
+            border-color var(--md-duration-short);
+    }
+
+    .server-btn:hover {
+        background: var(--md-sys-color-surface-container-high);
+        border-color: var(--md-sys-color-outline);
+    }
+
+    .server-icon {
+        width: 24px;
+        height: 24px;
+        border-radius: var(--md-shape-xs);
+        object-fit: cover;
+    }
+
+    .server-fallback {
+        width: 24px;
+        height: 24px;
+        border-radius: var(--md-shape-xs);
+        background: var(--md-sys-color-primary-container);
+        color: var(--md-sys-color-on-primary-container);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .server-menu {
+        position: absolute;
+        top: calc(100% + 8px);
+        right: 0;
+        background: var(--md-sys-color-surface-container-high);
+        border: 1px solid var(--md-sys-color-outline-variant);
+        border-radius: var(--md-shape-lg);
+        min-width: 200px;
+        list-style: none;
+        padding: 6px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        animation: menu-in 0.15s var(--md-easing-standard);
+        z-index: 100;
+    }
+
+    @keyframes menu-in {
+        from {
+            opacity: 0;
+            transform: translateY(-4px) scale(0.97);
+        }
+        to {
+            opacity: 1;
+            transform: none;
+        }
+    }
+
+    .sm-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 10px;
+        border-radius: var(--md-shape-md);
+        cursor: pointer;
+        font-size: 0.875rem;
+        color: var(--md-sys-color-on-surface);
+        transition: background var(--md-duration-short);
+    }
+
+    .sm-item:hover {
+        background: color-mix(
+            in srgb,
+            var(--md-sys-color-on-surface) 8%,
+            transparent
+        );
+    }
+    .sm-item.active {
+        background: var(--md-sys-color-secondary-container);
+        color: var(--md-sys-color-on-secondary-container);
+    }
+
+    .sm-icon {
+        width: 28px;
+        height: 28px;
+        border-radius: var(--md-shape-xs);
+        object-fit: cover;
+        flex-shrink: 0;
+    }
+
+    .sm-fallback {
+        width: 28px;
+        height: 28px;
+        border-radius: var(--md-shape-xs);
+        background: var(--md-sys-color-primary-container);
+        color: var(--md-sys-color-on-primary-container);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75rem;
+        font-weight: 600;
+        flex-shrink: 0;
+    }
+
+    .user-chip {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 3px 10px 3px 3px;
+        border-radius: var(--md-shape-full);
+        background: var(--md-sys-color-surface-container);
+    }
+
+    .user-avatar {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        object-fit: cover;
+    }
+
+    .panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 20px 24px 16px;
+        max-width: 780px;
+        margin: 0 auto;
+        width: 100%;
+        position: sticky;
+        top: 60px;
+        z-index: 10;
+        background: var(--md-sys-color-surface);
+        padding-bottom: 16px;
+    }
+
+    .panel-header::after {
+        content: "";
+        position: absolute;
+        bottom: 0;
+        left: 24px;
+        right: 24px;
+        height: 1px;
+        background: var(--md-sys-color-outline-variant);
+    }
+
+    .panel-title-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .panel-actions {
+        display: flex;
+        gap: 10px;
+        flex-shrink: 0;
+    }
+
+    .content {
+        flex: 1;
+        overflow-y: auto;
+    }
+
+    .loading-state {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 200px;
+    }
+
+    .fields-wrap {
+        max-width: 780px;
+        margin: 0 auto;
+        padding: 20px 24px 48px;
+    }
+
+    .fields {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .fields-enter {
+        animation: fields-in 0.18s var(--md-easing-standard) both;
+    }
+
+    .fields-exit {
+        animation: fields-out 0.12s var(--md-easing-standard) both;
+    }
+
+    @keyframes fields-in {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes fields-out {
+        from {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        to {
+            opacity: 0;
+            transform: translateY(-6px);
+        }
+    }
+
+    .field-row {
+        background: var(--md-sys-color-surface-container);
+        border-radius: var(--md-shape-lg);
+        padding: 16px 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        transition: background var(--md-duration-short);
+        border-left: 3px solid transparent;
+    }
+
+    .field-row:hover {
+        background: var(--md-sys-color-surface-container-high);
+    }
+
+    .field-row--dirty {
+        border-left-color: var(--md-sys-color-primary);
+    }
+
+    .field-row--toggle {
+        padding: 12px 20px;
+    }
+
+    .switch-wrap {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        cursor: pointer;
+    }
+
+    .switch-labels {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .switch {
+        position: relative;
+        display: inline-block;
+        flex-shrink: 0;
+    }
+    .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+        position: absolute;
+    }
+
+    .switch-track {
+        display: flex;
+        align-items: center;
+        width: 52px;
+        height: 32px;
+        border-radius: var(--md-shape-full);
+        background: var(--md-sys-color-surface-variant);
+        border: 2px solid var(--md-sys-color-outline);
+        transition:
+            background var(--md-duration-med),
+            border-color var(--md-duration-med);
+        cursor: pointer;
+        padding: 0 4px;
+    }
+
+    .switch input:checked + .switch-track {
+        background: var(--md-sys-color-primary);
+        border-color: var(--md-sys-color-primary);
+    }
+
+    .switch-thumb {
+        width: 16px;
+        height: 16px;
+        border-radius: var(--md-shape-full);
+        background: var(--md-sys-color-outline);
+        transition:
+            transform var(--md-duration-med),
+            width var(--md-duration-short),
+            height var(--md-duration-short),
+            background var(--md-duration-med);
+    }
+
+    .switch input:checked + .switch-track .switch-thumb {
+        transform: translateX(20px);
+        width: 24px;
+        height: 24px;
+        background: var(--md-sys-color-on-primary);
+    }
+
+    .field-label {
+        font-size: 0.75rem;
+        font-weight: 500;
+        letter-spacing: 0.031em;
+        color: var(--md-sys-color-on-surface-variant);
+    }
+
+    .field {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        background: var(--md-sys-color-surface-container-high);
+        border: 1px solid var(--md-sys-color-outline-variant);
+        border-radius: var(--md-shape-sm);
+        padding: 10px 12px;
+        transition: border-color var(--md-duration-short);
+    }
+
+    .field:focus-within {
+        border-color: var(--md-sys-color-primary);
+        border-width: 2px;
+        padding: 9px 11px;
+    }
+
+    .field input,
+    .field textarea {
+        flex: 1;
+        background: transparent;
+        border: none;
+        outline: none;
+        font-family: inherit;
+        font-size: 0.9375rem;
+        color: var(--md-sys-color-on-surface);
+        caret-color: var(--md-sys-color-primary);
+        line-height: 1.5;
+        resize: vertical;
+        min-width: 0;
+    }
+
+    .field input::placeholder,
+    .field textarea::placeholder {
+        color: var(--md-sys-color-on-surface-variant);
+        opacity: 0.6;
+    }
+
+    .field textarea {
+        min-height: 72px;
+    }
+
+    .field-hint {
+        font-size: 0.75rem;
+        color: var(--md-sys-color-on-surface-variant);
+        opacity: 0.8;
+        line-height: 1.4;
+    }
+
+    .clear-btn {
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        color: var(--md-sys-color-on-surface-variant);
+        padding: 0;
+        display: flex;
+        align-items: center;
+        opacity: 0.7;
+        flex-shrink: 0;
+    }
+
+    .clear-btn:hover {
+        opacity: 1;
+    }
+
+    .md-select {
+        width: 100%;
+        background: var(--md-sys-color-surface-container-high);
+        border: 1px solid var(--md-sys-color-outline-variant);
+        border-radius: var(--md-shape-sm);
+        padding: 10px 36px 10px 12px;
+        font-family: inherit;
+        font-size: 0.9375rem;
+        color: var(--md-sys-color-on-surface);
+        cursor: pointer;
+        appearance: none;
+        -webkit-appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24'%3E%3Cpath fill='%23938f99' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 10px center;
+        transition: border-color var(--md-duration-short);
+    }
+
+    .md-select:focus {
+        outline: none;
+        border-color: var(--md-sys-color-primary);
+        border-width: 2px;
+        padding: 9px 35px 9px 11px;
+    }
+
+    .md-select option {
+        background: var(--md-sys-color-surface-container-high);
+    }
+    .md-select optgroup {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--md-sys-color-on-surface-variant);
+    }
+
+    .multi-select {
+        position: relative;
+        background: var(--md-sys-color-surface-container-high);
+        border: 1px solid var(--md-sys-color-outline-variant);
+        border-radius: var(--md-shape-sm);
+        padding: 8px 12px;
+        min-height: 44px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: center;
+        transition: border-color var(--md-duration-short);
+    }
+
+    .multi-select:focus-within {
+        border-color: var(--md-sys-color-primary);
+    }
+
+    .ms-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: center;
+    }
+
+    .ms-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 3px 4px 3px 8px;
+        background: var(--md-sys-color-surface-container-highest);
+        border-radius: var(--md-shape-full);
+        font-size: 0.8125rem;
+        font-weight: 500;
+        color: var(--md-sys-color-on-surface);
+        white-space: nowrap;
+    }
+
+    .ms-remove {
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        color: var(--md-sys-color-on-surface-variant);
+        padding: 1px;
+        display: flex;
+        align-items: center;
+        border-radius: var(--md-shape-full);
+        transition: background var(--md-duration-short);
+    }
+
+    .ms-remove:hover {
+        background: color-mix(
+            in srgb,
+            var(--md-sys-color-on-surface) 12%,
+            transparent
+        );
+    }
+
+    .ms-add-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px;
+        background: transparent;
+        border: 1px dashed var(--md-sys-color-outline-variant);
+        border-radius: var(--md-shape-full);
+        font-family: inherit;
+        font-size: 0.8125rem;
+        color: var(--md-sys-color-on-surface-variant);
+        cursor: pointer;
+        transition:
+            border-color var(--md-duration-short),
+            color var(--md-duration-short);
+    }
+
+    .ms-add-btn:hover {
+        border-color: var(--md-sys-color-primary);
+        color: var(--md-sys-color-primary);
+    }
+
+    .ms-dropdown {
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 0;
+        right: 0;
+        background: var(--md-sys-color-surface-container-high);
+        border: 1px solid var(--md-sys-color-outline-variant);
+        border-radius: var(--md-shape-lg);
+        max-height: 240px;
+        overflow-y: auto;
+        padding: 6px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+        z-index: 50;
+        animation: menu-in 0.12s var(--md-easing-standard);
+    }
+
+    .ms-option {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        border-radius: var(--md-shape-sm);
+        cursor: pointer;
+        font-size: 0.875rem;
+        color: var(--md-sys-color-on-surface);
+        transition: background var(--md-duration-short);
+        justify-content: space-between;
+    }
+
+    .ms-option:hover {
+        background: color-mix(
+            in srgb,
+            var(--md-sys-color-on-surface) 8%,
+            transparent
+        );
+    }
+    .ms-option--selected {
+        background: color-mix(
+            in srgb,
+            var(--md-sys-color-primary) 12%,
+            transparent
+        );
+        color: var(--md-sys-color-primary);
+    }
+    .ms-empty {
+        padding: 12px;
+        text-align: center;
+        font-size: 0.875rem;
+        color: var(--md-sys-color-on-surface-variant);
+    }
+
+    .role-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+
+    .spinner {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        border: 3px solid var(--md-sys-color-surface-container-highest);
+        border-top-color: var(--md-sys-color-primary);
+        animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    @media (max-width: 700px) {
+        .topnav {
+            padding: 0 12px;
+        }
+        .nav-brand .brand-name {
+            display: none;
+        }
+        .cat-tab {
+            padding: 6px 10px;
+            font-size: 0.75rem;
+        }
+        .cat-tab .icon {
+            display: none;
+        }
+        .fields-wrap {
+            padding: 16px 12px 40px;
+        }
+        .panel-header {
+            padding: 16px 12px 14px;
+            top: 60px;
+        }
+        .panel-header::after {
+            left: 12px;
+            right: 12px;
+        }
+        .user-chip .md-label-md {
+            display: none;
+        }
+        .btn.btn-text span.icon {
+            margin-right: 0;
+        }
+    }
 </style>

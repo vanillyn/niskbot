@@ -7,6 +7,18 @@ export interface Guild {
   in_server: boolean;
 }
 
+export interface Channel {
+  id: string;
+  name: string;
+  category: string | null;
+}
+
+export interface Role {
+  id: string;
+  name: string;
+  color: string;
+}
+
 function authHeaders(): HeadersInit {
   const token = localStorage.getItem("discord_token");
   return token
@@ -44,4 +56,12 @@ export async function setConfig(
     method: "POST",
     body: JSON.stringify(data),
   });
+}
+
+export async function getChannels(guildId: string): Promise<Channel[]> {
+  return req<Channel[]>(`/api/guild/${guildId}/channels`);
+}
+
+export async function getRoles(guildId: string): Promise<Role[]> {
+  return req<Role[]>(`/api/guild/${guildId}/roles`);
 }
