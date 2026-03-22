@@ -4,7 +4,6 @@ import Base from "../layouts/base.astro";
 
 <Base title="dashboard">
     <div class="app" id="app">
-        <!-- topnav -->
         <header class="topnav">
             <div class="nav-brand">
                 <span class="icon icon-sm icon-filled" aria-hidden="true"
@@ -69,7 +68,6 @@ import Base from "../layouts/base.astro";
             </div>
         </header>
 
-        <!-- panel header (sticky, inside content area) -->
         <div class="panel-header" id="panel-header" hidden>
             <div class="panel-title-wrap">
                 <h1 class="md-title-lg" id="panel-title"></h1>
@@ -87,7 +85,6 @@ import Base from "../layouts/base.astro";
             </div>
         </div>
 
-        <!-- fields container -->
         <main class="content" id="content">
             <div class="fields-wrap" id="fields-wrap" hidden>
                 <div id="fields" class="fields"></div>
@@ -117,7 +114,6 @@ import Base from "../layouts/base.astro";
         type ConfigCategory,
     } from "../lib/config-meta";
 
-    // --- state ---
     let token = getToken();
     let guilds: Guild[] = [];
     let activeGuild: Guild | null = null;
@@ -129,7 +125,6 @@ import Base from "../layouts/base.astro";
     let channelsLoaded = false;
     let rolesLoaded = false;
 
-    // --- snackbar ---
     let snackTimeout: ReturnType<typeof setTimeout> | null = null;
     function snack(msg: string, isError = false): void {
         const bar = document.getElementById("snackbar");
@@ -146,7 +141,6 @@ import Base from "../layouts/base.astro";
         snackTimeout = setTimeout(() => bar.classList.remove("shown"), 3000);
     }
 
-    // --- helpers ---
     function esc(s: string | null | undefined): string {
         if (!s) return "";
         return s
@@ -165,7 +159,6 @@ import Base from "../layouts/base.astro";
         el<HTMLElement>("fields-wrap").hidden = loading;
     }
 
-    // --- auth init ---
     async function init(): Promise<void> {
         if (!token) {
             login();

@@ -37,7 +37,7 @@ import Base from "../layouts/base.astro";
             fail("invalid token — redirecting...");
         } else {
             setToken(token, expiresIn ? parseInt(expiresIn, 10) : 604800);
-            window.location.replace(`${BASE}dashboard`);
+            window.location.replace(`${BASE}/dashboard`);
         }
     }
 </script>
