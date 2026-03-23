@@ -3,13 +3,17 @@ from __future__ import annotations
 import re
 import uuid as _uuid_mod
 from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Literal
 
 import discord
 
-_BUTTON_RE = re.compile(
-    r"\{(?:button|b):([^:}]+):([^:}]+):([^:}]+):((?:[^{}]|\{[^}]*\})+)\}"
+_BUTTON_DEF_RE = re.compile(r"\{b:([^:}]+):([^:}]+):([^:}]+):((?:[^{}]|\{[^}]*\})+)\}")
+_MARKER_RE = re.compile(
+    r"\{(?:container|c):(?P<container>[^}]+)\}"
+    r"|\{display:(?P<display>[^}]+)\}"
+    r"|\{separator\}"
 )
-_CONTAINER_RE = re.compile(r"\{container:([^}]+)\}")
 _ROLE_RE = re.compile(r"^\{role:(add|remove):([^:}]+)(?::([^}]*))?\}$")
 _CHANNEL_RE = re.compile(
     r"^\{channel:(add|remove|rename|slowmode):([^:}]+)(?::([^}]*))?\}$"
@@ -26,6 +30,14 @@ _STYLE_MAP: dict[str, discord.ButtonStyle] = {
     "success": discord.ButtonStyle.success,
 }
 
+SegmentKind = Literal["text", "display", "separator", "container"]
+
+
+@dataclass
+class Segment:
+    kind: SegmentKind
+    value: str
+
 
 @dataclass
 class ParsedButton:
@@ -41,9 +53,21 @@ class ParsedButton:
 
 @dataclass
 class ParseResult:
-    text: str
-    buttons: list[ParsedButton] = field(default_factory=list)
-    container_refs: list[str] = field(default_factory=list)
+    segments: list[Segment] = field(default_factory=list)
+    buttons: dict[str, ParsedButton] = field(default_factory=dict)
+
+
+def _dt(value: datetime | None, fmt: str = "F") -> str:
+    if value is None:
+        return ""
+    return f"<t:{int(value.timestamp())}:{fmt}>"
+
+
+def _ordinal(n: int) -> str:
+    suffix = (
+        "th" if 11 <= (n % 100) <= 13 else {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+    )
+    return f"{n}{suffix}"
 
 
 def resolve_text(
@@ -51,51 +75,108 @@ def resolve_text(
     guild: discord.Guild,
     member: discord.Member,
     channel: discord.abc.GuildChannel | discord.Thread | None = None,
+    mentions: list[discord.Member] | None = None,
 ) -> str:
+    mention: discord.Member | None = mentions[0] if mentions else None
+    member_count = guild.member_count or 0
+    human_count = sum(1 for m in guild.members if not m.bot)
+    role_count = sum(1 for r in guild.roles if r.name != "@everyone")
+
     mapping: dict[str, str] = {
         "{user}": member.mention,
+        "{user_name}": member.name,
         "{username}": member.name,
         "{display_name}": member.display_name,
         "{user_id}": str(member.id),
+        "{user_join_date}": _dt(member.joined_at),
+        "{user_creation_date}": _dt(member.created_at),
+        "{user_top_role}": member.top_role.name,
+        "{user_avatar}": member.display_avatar.url,
         "{mention}": member.mention,
+        "{mention_name}": mention.name if mention else "",
+        "{mention_id}": str(mention.id) if mention else "",
+        "{mention_join_date}": _dt(mention.joined_at) if mention else "",
+        "{mention_avatar}": mention.display_avatar.url if mention else "",
         "{server}": guild.name,
+        "{server_name}": guild.name,
         "{server_id}": str(guild.id),
-        "{member_count}": str(guild.member_count or 0),
+        "{server_creation_date}": _dt(guild.created_at),
+        "{server_roles}": str(role_count),
+        "{server_channels}": str(len(guild.channels)),
+        "{server_level}": str(guild.premium_tier),
+        "{server_boosts}": str(guild.premium_subscription_count or 0),
+        "{server_icon}": guild.icon.url if guild.icon else "",
+        "{member_count}": str(member_count),
+        "{member_count_ordinal}": _ordinal(member_count),
+        "{member_count_ex_bots}": str(human_count),
+        "{member_count_ex_bots_ordinal}": _ordinal(human_count),
     }
+
     if isinstance(channel, (discord.TextChannel, discord.Thread)):
-        mapping["{channel}"] = channel.name
+        mapping["{channel}"] = channel.mention
+        mapping["{channel_name}"] = channel.name
         mapping["{channel_id}"] = str(channel.id)
+
     for k, v in mapping.items():
         text = text.replace(k, v)
+
     return text
 
 
 def parse_buttons(text: str) -> ParseResult:
-    result = ParseResult(text=text)
-    for m in _CONTAINER_RE.finditer(text):
-        result.container_refs.append(m.group(1).strip())
-    for m in _BUTTON_RE.finditer(text):
+    result = ParseResult()
+
+    for m in _BUTTON_DEF_RE.finditer(text):
         name = m.group(1).strip()
         label = m.group(2).strip()
         btype = m.group(3).strip().lower()
         action = m.group(4).strip()
-        is_link = btype == "link"
+
+        is_link = btype == "link" or action.startswith(("http://", "https://"))
         is_disabled = btype == "disabled"
-        style = _STYLE_MAP.get(btype, discord.ButtonStyle.secondary)
-        result.buttons.append(
-            ParsedButton(
-                internal_id=str(_uuid_mod.uuid4()),
-                name=name,
-                label=label,
-                style=style,
-                disabled=is_disabled,
-                is_link=is_link,
-                action="" if is_link else action,
-                url=action if is_link else None,
-            )
+        style = (
+            discord.ButtonStyle.link
+            if is_link
+            else _STYLE_MAP.get(btype, discord.ButtonStyle.secondary)
         )
-    clean = _BUTTON_RE.sub("", _CONTAINER_RE.sub("", text)).strip()
-    result.text = clean
+
+        result.buttons[name] = ParsedButton(
+            internal_id=str(_uuid_mod.uuid4()),
+            name=name,
+            label=label,
+            style=style,
+            disabled=is_disabled,
+            is_link=is_link,
+            action="" if is_link else action,
+            url=action if is_link else None,
+        )
+
+    clean = re.sub(r"\n{3,}", "\n\n", _BUTTON_DEF_RE.sub("", text)).strip()
+
+    last = 0
+    for m in _MARKER_RE.finditer(clean):
+        before = clean[last : m.start()].strip()
+        if before:
+            result.segments.append(Segment(kind="text", value=before))
+
+        container_name = m.group("container")
+        display_ids = m.group("display")
+
+        if container_name is not None:
+            result.segments.append(
+                Segment(kind="container", value=container_name.strip())
+            )
+        elif display_ids is not None:
+            result.segments.append(Segment(kind="display", value=display_ids.strip()))
+        else:
+            result.segments.append(Segment(kind="separator", value=""))
+
+        last = m.end()
+
+    remaining = clean[last:].strip()
+    if remaining:
+        result.segments.append(Segment(kind="text", value=remaining))
+
     return result
 
 

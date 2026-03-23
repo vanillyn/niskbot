@@ -160,52 +160,75 @@ async def render_resource(
     guild: discord.Guild,
     member: discord.Member,
     channel: discord.abc.GuildChannel | discord.Thread | None = None,
+    mentions: list[discord.Member] | None = None,
 ) -> tuple[BaseLayout, list[ParsedButton]]:
-    resolved = resolve_text(content, guild, member, channel)
+    from src.data.db import Database
+
+    assert isinstance(db, Database)
+
+    resolved = resolve_text(content, guild, member, channel, mentions)
     parsed = parse_buttons(resolved)
 
     layout = BaseLayout()
+    non_link: list[ParsedButton] = []
+    seen: set[str] = set()
 
-    for cname in parsed.container_refs:
-        from src.data.db import Database
-
-        assert isinstance(db, Database)
-        row = await db.fetchone(
-            "select items, accent_color from containers where guild_id = ? and name = ?",
-            (guild_id, cname),
-        )
-        if row is not None:
-            layout.add_item(
-                build_discord_container(
-                    str(row[0]), int(row[1]) if row[1] is not None else None
-                )
-            )
-
-    if parsed.text:
-        layout.add_container(ui.TextDisplay(parsed.text))
-
-    all_btns: list[ui.Button[ui.View]] = []
-    for b in parsed.buttons:
-        if b.is_link and b.url:
-            btn: ui.Button[ui.View] = ui.Button(
-                label=b.label,
-                url=b.url,
+    def _make_btn(btn_def: ParsedButton) -> ui.Button[ui.View]:
+        if btn_def.is_link and btn_def.url:
+            return ui.Button(
+                label=btn_def.label,
+                url=btn_def.url,
                 style=discord.ButtonStyle.link,
             )
-        else:
-            btn = ui.Button(
-                label=b.label,
-                style=b.style,
-                disabled=b.disabled,
-                custom_id=f"rb:{b.internal_id}",
+        btn: ui.Button[ui.View] = ui.Button(
+            label=btn_def.label,
+            style=btn_def.style,
+            disabled=btn_def.disabled,
+            custom_id=f"rb:{btn_def.internal_id}",
+        )
+        if btn_def.internal_id not in seen:
+            seen.add(btn_def.internal_id)
+            non_link.append(btn_def)
+        return btn
+
+    displayed_names: set[str] = set()
+
+    for seg in parsed.segments:
+        if seg.kind == "text":
+            layout.add_container(ui.TextDisplay(seg.value))
+        elif seg.kind == "separator":
+            layout.add_sep()
+        elif seg.kind == "container":
+            row = await db.fetchone(
+                "select items, accent_color from containers"
+                " where guild_id = ? and name = ?",
+                (guild_id, seg.value),
             )
-        all_btns.append(btn)
+            if row is not None:
+                layout.add_item(
+                    build_discord_container(
+                        str(row[0]),
+                        int(row[1]) if row[1] is not None else None,
+                    )
+                )
+        elif seg.kind == "display":
+            ids = [i.strip() for i in seg.value.split(",") if i.strip()]
+            btns: list[ui.Button[ui.View]] = []
+            for btn_id in ids:
+                displayed_names.add(btn_id)
+                btn_def = parsed.buttons.get(btn_id)
+                if btn_def is not None:
+                    btns.append(_make_btn(btn_def))
+            if btns:
+                action_row: ui.ActionRow[BaseLayout] = ui.ActionRow(*btns[:5])
+                layout.add_item(action_row)
 
-    for i in range(0, len(all_btns), 5):
-        row: ui.ActionRow[BaseLayout] = ui.ActionRow(*all_btns[i : i + 5])
-        layout.add_item(row)
+    undisplayed = [b for n, b in parsed.buttons.items() if n not in displayed_names]
+    if undisplayed:
+        all_btns = [_make_btn(b) for b in undisplayed]
+        for i in range(0, len(all_btns), 5):
+            layout.add_item(ui.ActionRow(*all_btns[i : i + 5]))
 
-    non_link = [b for b in parsed.buttons if not b.is_link]
     return layout, non_link
 
 
@@ -325,7 +348,7 @@ class ResourceCog(commands.Cog, name="resources"):
         check = parse_buttons(
             resolve_text(content, interaction.guild, interaction.user, channel)
         )
-        for b in check.buttons:
+        for b in check.buttons.values():
             if not b.is_link and action_needs_admin(b.action):
                 if not interaction.user.guild_permissions.administrator:
                     await interaction.response.send_message(

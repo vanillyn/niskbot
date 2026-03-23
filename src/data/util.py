@@ -1,3 +1,5 @@
+from src.data.db import Database
+
 _CONFIGS: dict[str, list[tuple[str, str, str, str | None]]] = {
     "server": [
         ("server.name", "server name", "text", None),
@@ -307,3 +309,78 @@ _CONFIGS_FLAT: dict[str, tuple[str, str, str | None]] = {
     for entries in _CONFIGS.values()
     for key, label, hint, default in entries
 }
+
+
+async def get_streamer_alerts(
+    db: Database, guild_id: int, platform: str
+) -> list[tuple[str, int, str | None]]:
+    rows = await db.fetchall(
+        "select streamer, channel_id, message from streamer_alerts"
+        " where guild_id = ? and platform = ?",
+        (guild_id, platform),
+    )
+    return [
+        (str(r[0]), int(r[1]), str(r[2]) if r[2] is not None else None)  # type: ignore[arg-type]
+        for r in rows
+    ]
+
+
+async def upsert_streamer_alert(
+    db: Database,
+    guild_id: int,
+    platform: str,
+    streamer: str,
+    channel_id: int,
+    message: str | None,
+) -> None:
+    await db.execute(
+        "insert into streamer_alerts (guild_id, platform, streamer, channel_id, message)"
+        " values (?, ?, ?, ?, ?)"
+        " on conflict (guild_id, platform, streamer) do update set"
+        " channel_id = excluded.channel_id, message = excluded.message",
+        (guild_id, platform, streamer, channel_id, message),
+    )
+
+
+async def delete_streamer_alert(
+    db: Database, guild_id: int, platform: str, streamer: str
+) -> bool:
+    row = await db.fetchone(
+        "select 1 from streamer_alerts where guild_id = ? and platform = ? and streamer = ?",
+        (guild_id, platform, streamer),
+    )
+    if row is None:
+        return False
+    await db.execute(
+        "delete from streamer_alerts where guild_id = ? and platform = ? and streamer = ?",
+        (guild_id, platform, streamer),
+    )
+    return True
+
+
+async def get_stream_cache(
+    db: Database, guild_id: int, platform: str, streamer: str
+) -> bool:
+    row = await db.fetchone(
+        "select is_live from stream_live_cache"
+        " where guild_id = ? and platform = ? and streamer = ?",
+        (guild_id, platform, streamer),
+    )
+    return bool(int(row[0])) if row is not None else False  # type: ignore[arg-type]
+
+
+async def set_stream_cache(
+    db: Database,
+    guild_id: int,
+    platform: str,
+    streamer: str,
+    is_live: bool,
+    last_checked: int,
+) -> None:
+    await db.execute(
+        "insert into stream_live_cache (guild_id, platform, streamer, is_live, last_checked)"
+        " values (?, ?, ?, ?, ?)"
+        " on conflict (guild_id, platform, streamer) do update set"
+        " is_live = excluded.is_live, last_checked = excluded.last_checked",
+        (guild_id, platform, streamer, int(is_live), last_checked),
+    )

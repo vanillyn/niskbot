@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import time
 from typing import TYPE_CHECKING
@@ -14,8 +15,6 @@ if TYPE_CHECKING:
 _DISCORD_API = "https://discord.com/api/v10"
 _ADMIN_BIT = 0x8
 
-# owner-only guild → only the discord user with OWNER_DISCORD_ID can see it
-# None → any admin in that guild can access
 _ALLOWED_GUILDS: dict[str, str | None] = {
     "1470258699665932321": None,
     "1395939916189405325": os.environ.get("OWNER_DISCORD_ID", ""),
@@ -255,6 +254,309 @@ def make_app(bot: "Bot") -> web.Application:
         ]
         return web.json_response(roles)
 
+    async def list_resources(request: web.Request) -> web.Response:
+        result = await _auth(request)
+        if isinstance(result, web.Response):
+            return result
+        token, user_id = result
+        guild_id_str = request.match_info["guild_id"]
+        denied = await _check_guild_access(token, user_id, guild_id_str, request)
+        if denied:
+            return denied
+        try:
+            guild_id = int(guild_id_str)
+        except ValueError:
+            return web.json_response({"error": "bad guild id"}, status=400)
+        rows = await bot.db.fetchall(
+            "select name, content, created_at from resources where guild_id = ? order by name",
+            (guild_id,),
+        )
+        return web.json_response(
+            [
+                {"name": str(r[0]), "content": str(r[1]), "created_at": int(r[2])}  # type: ignore[arg-type]
+                for r in rows
+            ]
+        )
+
+    async def save_resource(request: web.Request) -> web.Response:
+        result = await _auth(request)
+        if isinstance(result, web.Response):
+            return result
+        token, user_id = result
+        guild_id_str = request.match_info["guild_id"]
+        denied = await _check_guild_access(token, user_id, guild_id_str, request)
+        if denied:
+            return denied
+        try:
+            guild_id = int(guild_id_str)
+            data: dict[str, object] = await request.json()
+        except Exception:
+            return web.json_response({"error": "bad request"}, status=400)
+        name = str(data.get("name", "")).strip().lower().replace(" ", "-")
+        content = str(data.get("content", "")).strip()
+        if not name or not content:
+            return web.json_response({"error": "name and content required"}, status=400)
+        creator_id = int(user_id)
+        await bot.db.execute(
+            "insert into resources (guild_id, name, creator_id, content, created_at)"
+            " values (?, ?, ?, ?, ?)"
+            " on conflict (guild_id, name) do update set content = excluded.content",
+            (guild_id, name, creator_id, content, int(time.time())),
+        )
+        return web.json_response({"ok": True, "name": name})
+
+    async def delete_resource(request: web.Request) -> web.Response:
+        result = await _auth(request)
+        if isinstance(result, web.Response):
+            return result
+        token, user_id = result
+        guild_id_str = request.match_info["guild_id"]
+        denied = await _check_guild_access(token, user_id, guild_id_str, request)
+        if denied:
+            return denied
+        try:
+            guild_id = int(guild_id_str)
+        except ValueError:
+            return web.json_response({"error": "bad guild id"}, status=400)
+        name = request.match_info["name"]
+        await bot.db.execute(
+            "delete from resources where guild_id = ? and name = ?",
+            (guild_id, name),
+        )
+        return web.json_response({"ok": True})
+
+    async def list_containers(request: web.Request) -> web.Response:
+        result = await _auth(request)
+        if isinstance(result, web.Response):
+            return result
+        token, user_id = result
+        guild_id_str = request.match_info["guild_id"]
+        denied = await _check_guild_access(token, user_id, guild_id_str, request)
+        if denied:
+            return denied
+        try:
+            guild_id = int(guild_id_str)
+        except ValueError:
+            return web.json_response({"error": "bad guild id"}, status=400)
+        rows = await bot.db.fetchall(
+            "select name, items, accent_color from containers where guild_id = ? order by name",
+            (guild_id,),
+        )
+        return web.json_response(
+            [
+                {
+                    "name": str(r[0]),
+                    "items": json.loads(str(r[1])),
+                    "accent_color": int(r[2]) if r[2] is not None else None,  # type: ignore[arg-type]
+                }
+                for r in rows
+            ]
+        )
+
+    async def save_container(request: web.Request) -> web.Response:
+        result = await _auth(request)
+        if isinstance(result, web.Response):
+            return result
+        token, user_id = result
+        guild_id_str = request.match_info["guild_id"]
+        denied = await _check_guild_access(token, user_id, guild_id_str, request)
+        if denied:
+            return denied
+        try:
+            guild_id = int(guild_id_str)
+            data: dict[str, object] = await request.json()
+        except Exception:
+            return web.json_response({"error": "bad request"}, status=400)
+        name = str(data.get("name", "")).strip().lower().replace(" ", "-")
+        if not name:
+            return web.json_response({"error": "name required"}, status=400)
+        items = data.get("items", [])
+        accent_color = data.get("accent_color")
+        creator_id = int(user_id)
+        accent_int: int | None = int(accent_color) if accent_color is not None else None  # type: ignore[arg-type]
+        await bot.db.execute(
+            "insert into containers (guild_id, name, creator_id, items, accent_color, created_at)"
+            " values (?, ?, ?, ?, ?, ?)"
+            " on conflict (guild_id, name) do update set"
+            " items = excluded.items, accent_color = excluded.accent_color",
+            (
+                guild_id,
+                name,
+                creator_id,
+                json.dumps(items),
+                accent_int,
+                int(time.time()),
+            ),
+        )
+        return web.json_response({"ok": True, "name": name})
+
+    async def delete_container(request: web.Request) -> web.Response:
+        result = await _auth(request)
+        if isinstance(result, web.Response):
+            return result
+        token, user_id = result
+        guild_id_str = request.match_info["guild_id"]
+        denied = await _check_guild_access(token, user_id, guild_id_str, request)
+        if denied:
+            return denied
+        try:
+            guild_id = int(guild_id_str)
+        except ValueError:
+            return web.json_response({"error": "bad guild id"}, status=400)
+        name = request.match_info["name"]
+        await bot.db.execute(
+            "delete from containers where guild_id = ? and name = ?",
+            (guild_id, name),
+        )
+        return web.json_response({"ok": True})
+
+    async def list_twitch_alerts(request: web.Request) -> web.Response:
+        result = await _auth(request)
+        if isinstance(result, web.Response):
+            return result
+        token, user_id = result
+        guild_id_str = request.match_info["guild_id"]
+        denied = await _check_guild_access(token, user_id, guild_id_str, request)
+        if denied:
+            return denied
+        try:
+            guild_id = int(guild_id_str)
+        except ValueError:
+            return web.json_response({"error": "bad guild id"}, status=400)
+        from src.data.economy import get_streamer_alerts
+
+        entries = await get_streamer_alerts(bot.db, guild_id, "twitch")
+        return web.json_response(
+            [{"streamer": s, "channel_id": str(c), "message": m} for s, c, m in entries]
+        )
+
+    async def add_twitch_alert(request: web.Request) -> web.Response:
+        result = await _auth(request)
+        if isinstance(result, web.Response):
+            return result
+        token, user_id = result
+        guild_id_str = request.match_info["guild_id"]
+        denied = await _check_guild_access(token, user_id, guild_id_str, request)
+        if denied:
+            return denied
+        try:
+            guild_id = int(guild_id_str)
+            data: dict[str, object] = await request.json()
+        except Exception:
+            return web.json_response({"error": "bad request"}, status=400)
+        streamer = str(data.get("streamer", "")).strip().lower()
+        channel_id_raw = data.get("channel_id", "")
+        message: str | None = str(data.get("message", "")).strip() or None
+        if not streamer or not channel_id_raw:
+            return web.json_response(
+                {"error": "streamer and channel_id required"}, status=400
+            )
+        try:
+            channel_id = int(str(channel_id_raw))
+        except ValueError:
+            return web.json_response({"error": "invalid channel_id"}, status=400)
+        from src.data.economy import upsert_streamer_alert
+
+        await upsert_streamer_alert(
+            bot.db, guild_id, "twitch", streamer, channel_id, message
+        )
+        return web.json_response({"ok": True})
+
+    async def remove_twitch_alert(request: web.Request) -> web.Response:
+        result = await _auth(request)
+        if isinstance(result, web.Response):
+            return result
+        token, user_id = result
+        guild_id_str = request.match_info["guild_id"]
+        denied = await _check_guild_access(token, user_id, guild_id_str, request)
+        if denied:
+            return denied
+        try:
+            guild_id = int(guild_id_str)
+        except ValueError:
+            return web.json_response({"error": "bad guild id"}, status=400)
+        streamer = request.match_info["streamer"]
+        from src.data.economy import delete_streamer_alert
+
+        await delete_streamer_alert(bot.db, guild_id, "twitch", streamer)
+        return web.json_response({"ok": True})
+
+    async def list_youtube_alerts(request: web.Request) -> web.Response:
+        result = await _auth(request)
+        if isinstance(result, web.Response):
+            return result
+        token, user_id = result
+        guild_id_str = request.match_info["guild_id"]
+        denied = await _check_guild_access(token, user_id, guild_id_str, request)
+        if denied:
+            return denied
+        try:
+            guild_id = int(guild_id_str)
+        except ValueError:
+            return web.json_response({"error": "bad guild id"}, status=400)
+        from src.data.economy import get_streamer_alerts
+
+        entries = await get_streamer_alerts(bot.db, guild_id, "youtube")
+        return web.json_response(
+            [
+                {"channel_id": s, "discord_channel_id": str(c), "message": m}
+                for s, c, m in entries
+            ]
+        )
+
+    async def add_youtube_alert(request: web.Request) -> web.Response:
+        result = await _auth(request)
+        if isinstance(result, web.Response):
+            return result
+        token, user_id = result
+        guild_id_str = request.match_info["guild_id"]
+        denied = await _check_guild_access(token, user_id, guild_id_str, request)
+        if denied:
+            return denied
+        try:
+            guild_id = int(guild_id_str)
+            data: dict[str, object] = await request.json()
+        except Exception:
+            return web.json_response({"error": "bad request"}, status=400)
+        yt_channel_id = str(data.get("channel_id", "")).strip()
+        discord_raw = data.get("discord_channel_id", "")
+        message: str | None = str(data.get("message", "")).strip() or None
+        if not yt_channel_id or not discord_raw:
+            return web.json_response(
+                {"error": "channel_id and discord_channel_id required"}, status=400
+            )
+        try:
+            discord_channel_id = int(str(discord_raw))
+        except ValueError:
+            return web.json_response(
+                {"error": "invalid discord_channel_id"}, status=400
+            )
+        from src.data.economy import upsert_streamer_alert
+
+        await upsert_streamer_alert(
+            bot.db, guild_id, "youtube", yt_channel_id, discord_channel_id, message
+        )
+        return web.json_response({"ok": True})
+
+    async def remove_youtube_alert(request: web.Request) -> web.Response:
+        result = await _auth(request)
+        if isinstance(result, web.Response):
+            return result
+        token, user_id = result
+        guild_id_str = request.match_info["guild_id"]
+        denied = await _check_guild_access(token, user_id, guild_id_str, request)
+        if denied:
+            return denied
+        try:
+            guild_id = int(guild_id_str)
+        except ValueError:
+            return web.json_response({"error": "bad guild id"}, status=400)
+        yt_channel_id = request.match_info["channel_id"]
+        from src.data.economy import delete_streamer_alert
+
+        await delete_streamer_alert(bot.db, guild_id, "youtube", yt_channel_id)
+        return web.json_response({"ok": True})
+
     app.router.add_route(
         "OPTIONS", "/api/{tail:.*}", lambda r: web.Response(status=204)
     )
@@ -263,6 +565,22 @@ def make_app(bot: "Bot") -> web.Application:
     app.router.add_post("/api/guild/{guild_id}/config", set_config)
     app.router.add_get("/api/guild/{guild_id}/channels", get_channels)
     app.router.add_get("/api/guild/{guild_id}/roles", get_roles)
+    app.router.add_get("/api/guild/{guild_id}/resources", list_resources)
+    app.router.add_post("/api/guild/{guild_id}/resources", save_resource)
+    app.router.add_delete("/api/guild/{guild_id}/resources/{name}", delete_resource)
+    app.router.add_get("/api/guild/{guild_id}/containers", list_containers)
+    app.router.add_post("/api/guild/{guild_id}/containers", save_container)
+    app.router.add_delete("/api/guild/{guild_id}/containers/{name}", delete_container)
+    app.router.add_get("/api/guild/{guild_id}/alerts/twitch", list_twitch_alerts)
+    app.router.add_post("/api/guild/{guild_id}/alerts/twitch", add_twitch_alert)
+    app.router.add_delete(
+        "/api/guild/{guild_id}/alerts/twitch/{streamer}", remove_twitch_alert
+    )
+    app.router.add_get("/api/guild/{guild_id}/alerts/youtube", list_youtube_alerts)
+    app.router.add_post("/api/guild/{guild_id}/alerts/youtube", add_youtube_alert)
+    app.router.add_delete(
+        "/api/guild/{guild_id}/alerts/youtube/{channel_id}", remove_youtube_alert
+    )
 
     return app
 

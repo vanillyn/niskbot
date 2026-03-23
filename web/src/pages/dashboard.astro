@@ -3,96 +3,152 @@ import Base from "../layouts/base.astro";
 ---
 
 <Base title="dashboard">
-    <div class="app" id="app">
-        <header class="topnav">
-            <div class="nav-brand">
-                <span class="icon icon-sm icon-filled" aria-hidden="true"
-                    >shield</span
+    <div class="shell" id="shell">
+        <div class="sidebar-overlay" id="sidebar-overlay" hidden></div>
+
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-guild-wrap">
+                <button
+                    class="sidebar-guild"
+                    id="sidebar-guild-btn"
+                    aria-haspopup="listbox"
                 >
-                <span class="brand-name">niskbot</span>
+                    <img class="sg-icon" id="sg-icon" src="" alt="" hidden />
+                    <span class="sg-fallback" id="sg-fallback" hidden></span>
+                    <div class="sg-text">
+                        <span class="sg-name" id="sg-name">loading...</span>
+                        <span class="sg-sub" id="sg-sub"></span>
+                    </div>
+                    <span class="icon icon-sm sg-chevron" id="sg-chevron"
+                        >unfold_more</span
+                    >
+                </button>
+                <ul class="guild-menu" id="guild-menu" role="listbox" hidden>
+                </ul>
             </div>
 
-            <nav
-                class="nav-cats"
-                id="nav-cats"
-                role="tablist"
-                aria-label="settings categories"
-            >
-            </nav>
+            <nav class="sidebar-nav" id="sidebar-nav"></nav>
 
-            <div class="nav-end">
-                <div class="server-switcher" id="server-switcher" hidden>
-                    <button
-                        class="server-btn"
-                        id="server-btn"
-                        aria-haspopup="listbox"
-                    >
-                        <img
-                            class="server-icon"
-                            id="server-icon"
-                            src=""
-                            alt=""
-                            hidden
-                        />
-                        <span
-                            class="server-fallback"
-                            id="server-fallback"
-                            hidden></span>
-                        <span class="server-name" id="server-name"></span>
-                        <span class="icon icon-sm" id="server-chevron"
-                            >expand_more</span
-                        >
-                    </button>
-                    <ul
-                        class="server-menu"
-                        id="server-menu"
-                        role="listbox"
-                        hidden
-                    >
-                    </ul>
-                </div>
-                <div class="user-chip" id="user-chip" hidden>
+            <div class="sidebar-foot">
+                <div class="user-row" id="user-row" hidden>
                     <img
-                        class="user-avatar"
-                        id="user-avatar"
+                        class="user-av"
+                        id="user-av"
                         src=""
                         alt=""
                         width="28"
                         height="28"
                     />
-                    <span class="md-label-md" id="user-name"></span>
+                    <span class="user-nm" id="user-nm"></span>
                 </div>
-                <button class="btn btn-text" id="logout-btn" hidden
-                    >sign out</button
-                >
-            </div>
-        </header>
-
-        <div class="panel-header" id="panel-header" hidden>
-            <div class="panel-title-wrap">
-                <h1 class="md-title-lg" id="panel-title"></h1>
-                <span class="md-body-sm on-surface-variant" id="panel-subtitle"
-                ></span>
-            </div>
-            <div class="panel-actions">
-                <button class="btn btn-outlined" id="discard-btn" disabled
-                    >discard</button
-                >
-                <button class="btn btn-filled" id="save-btn" disabled>
-                    <span class="icon icon-sm">save</span>
-                    <span id="save-label">save</span>
+                <button class="btn-ghost" id="logout-btn" hidden>
+                    <span class="icon icon-sm">logout</span>
+                    sign out
                 </button>
             </div>
-        </div>
+        </aside>
 
-        <main class="content" id="content">
-            <div class="fields-wrap" id="fields-wrap" hidden>
-                <div id="fields" class="fields"></div>
+        <div class="main">
+            <div class="mobile-bar" id="mobile-bar">
+                <button class="icon-btn" id="sidebar-toggle">
+                    <span class="icon">menu</span>
+                </button>
+                <span class="mobile-title" id="mobile-title">dashboard</span>
             </div>
-            <div class="loading-state" id="loading-state">
-                <div class="spinner"></div>
+
+            <div class="view-wrap" id="view-wrap">
+                <div class="loading-full" id="loading-full">
+                    <div class="spinner"></div>
+                </div>
+
+                <div class="config-view" id="config-view" hidden>
+                    <div class="view-head">
+                        <div class="view-head-text">
+                            <h1 class="view-title" id="view-title"></h1>
+                            <p class="view-sub" id="view-sub-text"></p>
+                        </div>
+                        <div class="view-actions">
+                            <button
+                                class="btn-outlined"
+                                id="discard-btn"
+                                disabled>discard</button
+                            >
+                            <button class="btn-primary" id="save-btn" disabled>
+                                <span class="icon icon-sm">save</span>
+                                <span id="save-label">save</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="fields" id="fields"></div>
+                </div>
+
+                <div class="special-view" id="alerts-view" hidden>
+                    <div class="view-head">
+                        <div class="view-head-text">
+                            <h1 class="view-title">alerts</h1>
+                            <p class="view-sub">
+                                manage streamer and event notifications
+                            </p>
+                        </div>
+                    </div>
+                    <div class="tab-bar" id="alerts-tabs">
+                        <button class="tab active" data-tab="twitch"
+                            >twitch</button
+                        >
+                        <button class="tab" data-tab="youtube">youtube</button>
+                    </div>
+                    <div id="alerts-content"></div>
+                </div>
+
+                <div class="special-view" id="resources-view" hidden>
+                    <div class="view-head">
+                        <div class="view-head-text">
+                            <h1 class="view-title">resources</h1>
+                            <p class="view-sub">
+                                reusable message content with placeholders and
+                                buttons
+                            </p>
+                        </div>
+                        <button class="btn-primary" id="new-resource-btn">
+                            <span class="icon icon-sm">add</span>
+                            new resource
+                        </button>
+                    </div>
+                    <div class="split-layout" id="resources-split">
+                        <div class="split-list" id="resource-list"></div>
+                        <div class="split-editor" id="resource-editor">
+                            <div class="editor-empty">
+                                select a resource to edit
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="special-view" id="containers-view" hidden>
+                    <div class="view-head">
+                        <div class="view-head-text">
+                            <h1 class="view-title">containers</h1>
+                            <p class="view-sub">
+                                reusable discord ui containers with text,
+                                separators, and galleries
+                            </p>
+                        </div>
+                        <button class="btn-primary" id="new-container-btn">
+                            <span class="icon icon-sm">add</span>
+                            new container
+                        </button>
+                    </div>
+                    <div class="split-layout" id="containers-split">
+                        <div class="split-list" id="container-list"></div>
+                        <div class="split-editor" id="container-editor">
+                            <div class="editor-empty">
+                                select a container to edit
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-        </main>
+        </div>
     </div>
 </Base>
 
@@ -104,41 +160,124 @@ import Base from "../layouts/base.astro";
         setConfig,
         getChannels,
         getRoles,
+        getResources,
+        saveResource,
+        deleteResource,
+        getContainers,
+        saveContainer,
+        deleteContainer,
+        getTwitchAlerts,
+        addTwitchAlert,
+        removeTwitchAlert,
+        getYoutubeAlerts,
+        addYoutubeAlert,
+        removeYoutubeAlert,
         type Guild,
         type Channel,
         type Role,
+        type Resource,
+        type Container,
+        type ContainerItem,
+        type TwitchAlert,
+        type YoutubeAlert,
     } from "../lib/api";
     import {
         CONFIG_CATEGORIES,
-        type ConfigField,
         type ConfigCategory,
+        type ConfigField,
     } from "../lib/config-meta";
 
-    let token = getToken();
+    const PERMISSIONS = [
+        "administrator",
+        "manage_guild",
+        "manage_channels",
+        "manage_messages",
+        "manage_roles",
+        "kick_members",
+        "ban_members",
+        "moderate_members",
+        "send_messages",
+        "read_messages",
+        "manage_webhooks",
+        "view_audit_log",
+        "mention_everyone",
+        "manage_nicknames",
+        "change_nickname",
+    ];
+
+    const NAV_GROUPS = [
+        {
+            label: "general",
+            items: [
+                { key: "server", icon: "settings", label: "server" },
+                { key: "suggestions", icon: "forum", label: "suggestions" },
+            ],
+        },
+        {
+            label: "moderation",
+            items: [
+                { key: "moderation", icon: "gavel", label: "moderation" },
+                {
+                    key: "tickets",
+                    icon: "confirmation_number",
+                    label: "tickets",
+                },
+                { key: "logging", icon: "receipt_long", label: "logging" },
+            ],
+        },
+        {
+            label: "economy",
+            items: [
+                { key: "economy", icon: "payments", label: "economy" },
+                { key: "economy-roles", icon: "group", label: "economy roles" },
+                { key: "cookies", icon: "cookie", label: "cookies" },
+                { key: "xp-roles", icon: "stars", label: "xp & roles" },
+            ],
+        },
+        {
+            label: "content",
+            items: [
+                {
+                    key: "alerts",
+                    icon: "notifications",
+                    label: "alerts",
+                    special: true,
+                },
+                {
+                    key: "resources",
+                    icon: "article",
+                    label: "resources",
+                    special: true,
+                },
+                {
+                    key: "containers",
+                    icon: "view_compact",
+                    label: "containers",
+                    special: true,
+                },
+            ],
+        },
+    ] as const;
+
+    let token: string | null = getToken();
     let guilds: Guild[] = [];
     let activeGuild: Guild | null = null;
     let serverConfig: Record<string, string> = {};
-    let activeCategory: ConfigCategory = CONFIG_CATEGORIES[0]!;
+    let activeView = "";
     let pendingChanges: Record<string, string | null> = {};
     let channels: Channel[] = [];
     let roles: Role[] = [];
-    let channelsLoaded = false;
-    let rolesLoaded = false;
+    let resources: Resource[] = [];
+    let containers: Container[] = [];
+    let twitchAlerts: TwitchAlert[] = [];
+    let youtubeAlerts: YoutubeAlert[] = [];
+    let activeAlertsTab = "twitch";
+    let activeResourceName: string | null = null;
+    let activeContainerName: string | null = null;
+    let snackTimer: ReturnType<typeof setTimeout> | null = null;
 
-    let snackTimeout: ReturnType<typeof setTimeout> | null = null;
-    function snack(msg: string, isError = false): void {
-        const bar = document.getElementById("snackbar");
-        if (!bar) return;
-        bar.textContent = msg;
-        bar.style.background = isError
-            ? "var(--md-sys-color-error-container)"
-            : "var(--md-sys-color-inverse-surface)";
-        bar.style.color = isError
-            ? "var(--md-sys-color-on-error-container)"
-            : "var(--md-sys-color-inverse-on-surface)";
-        bar.classList.add("shown");
-        if (snackTimeout) clearTimeout(snackTimeout);
-        snackTimeout = setTimeout(() => bar.classList.remove("shown"), 3000);
+    function el<T extends HTMLElement>(id: string): T {
+        return document.getElementById(id) as T;
     }
 
     function esc(s: string | null | undefined): string {
@@ -150,13 +289,31 @@ import Base from "../layouts/base.astro";
             .replace(/"/g, "&quot;");
     }
 
-    function el<T extends HTMLElement>(id: string): T {
-        return document.getElementById(id) as T;
+    function snack(msg: string, err = false): void {
+        const bar = document.getElementById("snackbar");
+        if (!bar) return;
+        bar.textContent = msg;
+        bar.style.background = err
+            ? "var(--md-sys-color-error-container)"
+            : "var(--md-sys-color-inverse-surface)";
+        bar.style.color = err
+            ? "var(--md-sys-color-on-error-container)"
+            : "var(--md-sys-color-inverse-on-surface)";
+        bar.classList.add("shown");
+        if (snackTimer) clearTimeout(snackTimer);
+        snackTimer = setTimeout(() => bar.classList.remove("shown"), 3000);
     }
 
-    function setLoading(loading: boolean): void {
-        el("loading-state").style.display = loading ? "flex" : "none";
-        el<HTMLElement>("fields-wrap").hidden = loading;
+    function showView(id: string): void {
+        for (const vid of [
+            "config-view",
+            "alerts-view",
+            "resources-view",
+            "containers-view",
+        ]) {
+            (el(vid) as HTMLElement).hidden = id !== vid;
+        }
+        el("loading-full").style.display = "none";
     }
 
     async function init(): Promise<void> {
@@ -164,7 +321,6 @@ import Base from "../layouts/base.astro";
             login();
             return;
         }
-
         el<HTMLButtonElement>("logout-btn").hidden = false;
         el<HTMLButtonElement>("logout-btn").addEventListener("click", () => {
             clearToken();
@@ -179,22 +335,19 @@ import Base from "../layouts/base.astro";
                 id: string;
                 avatar: string | null;
             };
-
-            el("user-chip").hidden = false;
-            el("user-name").textContent = me.username;
-            const avatar = el<HTMLImageElement>("user-avatar");
+            el("user-row").hidden = false;
+            el("user-nm").textContent = me.username;
+            const av = el<HTMLImageElement>("user-av");
             if (me.avatar) {
-                avatar.src = `https://cdn.discordapp.com/avatars/${me.id}/${me.avatar}.webp?size=64`;
-                avatar.alt = me.username;
+                av.src = `https://cdn.discordapp.com/avatars/${me.id}/${me.avatar}.webp?size=64`;
+                av.alt = me.username;
             } else {
-                avatar.hidden = true;
+                av.hidden = true;
             }
-        } catch {}
+        } catch {
+            /* ignore */
+        }
 
-        await loadGuilds();
-    }
-
-    async function loadGuilds(): Promise<void> {
         try {
             guilds = await getGuilds();
         } catch {
@@ -203,81 +356,26 @@ import Base from "../layouts/base.astro";
         }
 
         if (!guilds.length) {
-            snack("no accessible servers found", true);
+            snack("no accessible servers", true);
             return;
         }
-
-        // auto-select first guild
         await selectGuild(guilds[0]!);
-
-        // show switcher only if there are multiple guilds
-        if (guilds.length > 1) {
-            el("server-switcher").hidden = false;
-            renderServerMenu();
-        }
     }
-
-    function renderServerMenu(): void {
-        const menu = el("server-menu");
-        menu.innerHTML = guilds
-            .map((g) => {
-                const icon = g.icon
-                    ? `<img src="https://cdn.discordapp.com/icons/${g.id}/${g.icon}.webp?size=32" alt="" class="sm-icon" />`
-                    : `<span class="sm-fallback">${esc(g.name[0])}</span>`;
-                return `<li role="option" class="sm-item ${activeGuild?.id === g.id ? "active" : ""}" data-id="${g.id}">
-        ${icon}
-        <span>${esc(g.name)}</span>
-      </li>`;
-            })
-            .join("");
-
-        menu.querySelectorAll<HTMLLIElement>("[data-id]").forEach((item) => {
-            item.addEventListener("click", async () => {
-                closeServerMenu();
-                const guild = guilds.find((g) => g.id === item.dataset["id"]);
-                if (guild && guild.id !== activeGuild?.id)
-                    await selectGuild(guild);
-            });
-        });
-    }
-
-    function openServerMenu(): void {
-        const menu = el("server-menu");
-        const btn = el("server-btn");
-        menu.hidden = false;
-        btn.setAttribute("aria-expanded", "true");
-        el("server-chevron").textContent = "expand_less";
-        renderServerMenu();
-    }
-
-    function closeServerMenu(): void {
-        const menu = el("server-menu");
-        const btn = el("server-btn");
-        menu.hidden = true;
-        btn.setAttribute("aria-expanded", "false");
-        el("server-chevron").textContent = "expand_more";
-    }
-
-    el("server-btn").addEventListener("click", () => {
-        el("server-menu").hidden ? openServerMenu() : closeServerMenu();
-    });
-
-    document.addEventListener("click", (e) => {
-        if (!el("server-switcher").contains(e.target as Node))
-            closeServerMenu();
-    });
 
     async function selectGuild(guild: Guild): Promise<void> {
         activeGuild = guild;
         pendingChanges = {};
-        channelsLoaded = false;
-        rolesLoaded = false;
         channels = [];
         roles = [];
+        resources = [];
+        containers = [];
+        twitchAlerts = [];
+        youtubeAlerts = [];
+        activeResourceName = null;
+        activeContainerName = null;
 
-        // update server chip
-        const icon = el<HTMLImageElement>("server-icon");
-        const fallback = el("server-fallback");
+        const icon = el<HTMLImageElement>("sg-icon");
+        const fallback = el("sg-fallback");
         if (guild.icon) {
             icon.src = `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.webp?size=64`;
             icon.hidden = false;
@@ -287,105 +385,138 @@ import Base from "../layouts/base.astro";
             fallback.textContent = guild.name[0]?.toUpperCase() ?? "?";
             fallback.hidden = false;
         }
-        el("server-name").textContent = guild.name;
-        el("server-switcher").hidden = guilds.length <= 1;
+        el("sg-name").textContent = guild.name;
+        el("sg-sub").textContent = guild.in_server
+            ? "bot active"
+            : "bot not in server";
 
-        renderCategoryNav();
-        el("panel-header").hidden = false;
-        await loadConfig();
-    }
+        el("loading-full").style.display = "flex";
+        for (const vid of [
+            "config-view",
+            "alerts-view",
+            "resources-view",
+            "containers-view",
+        ]) {
+            (el(vid) as HTMLElement).hidden = true;
+        }
 
-    async function loadConfig(): Promise<void> {
-        if (!activeGuild) return;
-        setLoading(true);
+        renderSidebar();
+        closeGuildMenu();
+
         try {
-            serverConfig = await getConfig(activeGuild.id);
+            [serverConfig, channels, roles] = await Promise.all([
+                getConfig(guild.id),
+                getChannels(guild.id),
+                getRoles(guild.id),
+            ]);
         } catch {
-            snack("failed to load config", true);
-            setLoading(false);
-            return;
+            snack("failed to load guild data", true);
         }
 
-        // preload channels and roles in parallel
-        if (!channelsLoaded && !rolesLoaded) {
-            try {
-                [channels, roles] = await Promise.all([
-                    getChannels(activeGuild.id),
-                    getRoles(activeGuild.id),
-                ]);
-                channelsLoaded = true;
-                rolesLoaded = true;
-            } catch {
-                snack("failed to load channels/roles", true);
-            }
-        }
-
-        setLoading(false);
-        await switchCategory(activeCategory, false);
-        updateSaveState();
+        el("loading-full").style.display = "none";
+        if (!activeView) activeView = "server";
+        await switchView(activeView);
     }
 
-    function renderCategoryNav(): void {
-        const nav = el("nav-cats");
-        nav.innerHTML = CONFIG_CATEGORIES.map(
-            (cat) => `
-      <button
-        class="cat-tab ${cat.key === activeCategory.key ? "active" : ""}"
-        data-cat="${cat.key}"
-        role="tab"
-        aria-selected="${cat.key === activeCategory.key}"
-      >
-        <span class="icon icon-sm">${cat.icon}</span>
-        ${cat.label}
-      </button>
+    function renderSidebar(): void {
+        const nav = el("sidebar-nav");
+        nav.innerHTML = NAV_GROUPS.map(
+            (group) => `
+      <div class="nav-group">
+        <span class="nav-group-label">${esc(group.label)}</span>
+        ${group.items
+            .map(
+                (item) => `
+          <button class="nav-item ${activeView === item.key ? "active" : ""}"
+            data-view="${item.key}">
+            <span class="icon icon-sm">${item.icon}</span>
+            ${esc(item.label)}
+          </button>
+        `,
+            )
+            .join("")}
+      </div>
     `,
         ).join("");
 
-        nav.querySelectorAll<HTMLButtonElement>("[data-cat]").forEach((btn) => {
-            btn.addEventListener("click", () => {
-                const key = btn.dataset["cat"] ?? "";
-                const cat = CONFIG_CATEGORIES.find((c) => c.key === key);
-                if (cat && cat.key !== activeCategory.key)
-                    void switchCategory(cat);
+        nav.querySelectorAll<HTMLButtonElement>("[data-view]").forEach(
+            (btn) => {
+                btn.addEventListener("click", () => {
+                    void switchView(btn.dataset["view"] ?? "");
+                    closeSidebar();
+                });
+            },
+        );
+
+        el("guild-menu").innerHTML = guilds
+            .map((g) => {
+                const ico = g.icon
+                    ? `<img src="https://cdn.discordapp.com/icons/${g.id}/${g.icon}.webp?size=32" class="gm-icon" alt="" />`
+                    : `<span class="gm-fallback">${esc(g.name[0])}</span>`;
+                return `<li class="gm-item ${activeGuild?.id === g.id ? "active" : ""}" data-id="${g.id}" role="option">
+        ${ico}<span>${esc(g.name)}</span>
+      </li>`;
+            })
+            .join("");
+
+        el("guild-menu")
+            .querySelectorAll<HTMLElement>("[data-id]")
+            .forEach((item) => {
+                item.addEventListener("click", () => {
+                    const guild = guilds.find(
+                        (g) => g.id === item.dataset["id"],
+                    );
+                    if (guild && guild.id !== activeGuild?.id)
+                        void selectGuild(guild);
+                });
             });
-        });
     }
 
-    async function switchCategory(
-        cat: ConfigCategory,
-        animate = true,
-    ): Promise<void> {
-        activeCategory = cat;
+    function openGuildMenu(): void {
+        el("guild-menu").hidden = false;
+        el("sg-chevron").textContent = "unfold_less";
+    }
 
-        // update active tab
-        el("nav-cats")
-            .querySelectorAll(".cat-tab")
-            .forEach((btn) => {
-                const active = (btn as HTMLElement).dataset["cat"] === cat.key;
-                btn.classList.toggle("active", active);
-                btn.setAttribute("aria-selected", String(active));
-            });
+    function closeGuildMenu(): void {
+        el("guild-menu").hidden = true;
+        el("sg-chevron").textContent = "unfold_more";
+    }
 
-        el("panel-title").textContent = cat.label;
-        el("panel-subtitle").textContent =
-            `${cat.fields.length} setting${cat.fields.length !== 1 ? "s" : ""}`;
+    function openSidebar(): void {
+        el("sidebar").classList.add("open");
+        el("sidebar-overlay").hidden = false;
+    }
 
-        const fieldsEl = el("fields");
+    function closeSidebar(): void {
+        el("sidebar").classList.remove("open");
+        el("sidebar-overlay").hidden = true;
+    }
 
-        if (animate) {
-            fieldsEl.classList.add("fields-exit");
-            await new Promise((r) => setTimeout(r, 120));
-            fieldsEl.classList.remove("fields-exit");
+    async function switchView(view: string): Promise<void> {
+        activeView = view;
+        renderSidebar();
+        el("mobile-title").textContent = view.replace("-", " ");
+
+        if (view === "alerts") {
+            await loadAlertsView();
+        } else if (view === "resources") {
+            await loadResourcesView();
+        } else if (view === "containers") {
+            await loadContainersView();
+        } else {
+            const cat = CONFIG_CATEGORIES.find((c) => c.key === view);
+            if (cat) renderConfigView(cat);
         }
+    }
 
-        fieldsEl.innerHTML = cat.fields.map((f) => renderField(f)).join("");
+    function renderConfigView(cat: ConfigCategory): void {
+        el("view-title").textContent = cat.label;
+        el("view-sub-text").textContent =
+            `${cat.fields.length} setting${cat.fields.length !== 1 ? "s" : ""}`;
+        el("fields").innerHTML = cat.fields.map((f) => renderField(f)).join("");
         bindFieldEvents();
-        fieldsEl.classList.add("fields-enter");
-        requestAnimationFrame(() => {
-            requestAnimationFrame(() =>
-                fieldsEl.classList.remove("fields-enter"),
-            );
-        });
+        updateSaveState();
+        showView("config-view");
     }
 
     function currentValue(field: ConfigField): string {
@@ -396,99 +527,88 @@ import Base from "../layouts/base.astro";
 
     function renderField(field: ConfigField): string {
         const val = currentValue(field);
-        const isDirty = pendingChanges[field.key] !== undefined;
-        const dirtyClass = isDirty ? "field-row--dirty" : "";
+        const dirty = pendingChanges[field.key] !== undefined;
+        const dc = dirty ? "field-row--dirty" : "";
 
         if (field.type === "toggle") {
             const checked = val ? val === "true" : field.default === "true";
-            return `
-        <div class="field-row field-row--toggle ${dirtyClass}">
-          <label class="switch-wrap" for="f-${field.key}">
-            <div class="switch-labels">
-              <span class="md-label-lg">${esc(field.label)}</span>
-              <span class="md-body-sm on-surface-variant">${esc(field.hint)}</span>
-            </div>
-            <label class="switch">
-              <input type="checkbox" id="f-${field.key}" data-key="${field.key}" data-type="toggle" ${checked ? "checked" : ""} />
-              <span class="switch-track"><span class="switch-thumb"></span></span>
-            </label>
+            return `<div class="field-row ${dc}">
+        <label class="toggle-wrap" for="f-${field.key}">
+          <div class="toggle-labels">
+            <span class="f-label">${esc(field.label)}</span>
+            <span class="f-hint">${esc(field.hint)}</span>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="f-${field.key}" data-key="${field.key}" data-type="toggle" ${checked ? "checked" : ""} />
+            <span class="switch-track"><span class="switch-thumb"></span></span>
           </label>
-        </div>`;
+        </label>
+      </div>`;
         }
 
         if (field.type === "channel") {
-            return `
-        <div class="field-row ${dirtyClass}">
-          <label class="field-label" for="f-${field.key}">${esc(field.label)}</label>
-          <select class="md-select" id="f-${field.key}" data-key="${field.key}" data-type="channel">
-            <option value="">— none —</option>
-            ${renderChannelOptions(val)}
-          </select>
-          <span class="field-hint">${esc(field.hint)}</span>
-        </div>`;
+            return `<div class="field-row ${dc}">
+        <label class="f-label" for="f-${field.key}">${esc(field.label)}</label>
+        <select class="f-select" id="f-${field.key}" data-key="${field.key}" data-type="channel">
+          <option value="">— none —</option>
+          ${renderChannelOptions(val)}
+        </select>
+        <span class="f-hint">${esc(field.hint)}</span>
+      </div>`;
         }
 
         if (field.type === "role") {
-            return `
-        <div class="field-row ${dirtyClass}">
-          <label class="field-label" for="f-${field.key}">${esc(field.label)}</label>
-          <select class="md-select" id="f-${field.key}" data-key="${field.key}" data-type="role">
-            <option value="">— none —</option>
-            ${renderRoleOptions(val)}
-          </select>
-          <span class="field-hint">${esc(field.hint)}</span>
-        </div>`;
+            return `<div class="field-row ${dc}">
+        <span class="f-label">${esc(field.label)}</span>
+        ${renderRoleSelect(`f-${field.key}`, field.key, val, "role")}
+        <span class="f-hint">${esc(field.hint)}</span>
+      </div>`;
         }
 
         if (field.type === "roles") {
-            return `
-        <div class="field-row ${dirtyClass}">
-          <span class="field-label">${esc(field.label)}</span>
-          <div class="multi-select" id="f-${field.key}" data-key="${field.key}" data-type="roles" data-value="${esc(val)}" tabindex="0">
-            <div class="ms-tags" id="ms-tags-${field.key}"></div>
-            <button class="ms-add-btn" type="button" data-ms="${field.key}">
-              <span class="icon icon-sm">add</span> add role
-            </button>
-            <div class="ms-dropdown" id="ms-drop-${field.key}" hidden></div>
-          </div>
-          <span class="field-hint">${esc(field.hint)}</span>
-        </div>`;
+            return `<div class="field-row ${dc}">
+        <span class="f-label">${esc(field.label)}</span>
+        ${renderMultiSelect(`f-${field.key}`, field.key, val, "roles")}
+        <span class="f-hint">${esc(field.hint)}</span>
+      </div>`;
         }
 
         if (field.type === "channels") {
-            return `
-        <div class="field-row ${dirtyClass}">
-          <span class="field-label">${esc(field.label)}</span>
-          <div class="multi-select" id="f-${field.key}" data-key="${field.key}" data-type="channels" data-value="${esc(val)}" tabindex="0">
-            <div class="ms-tags" id="ms-tags-${field.key}"></div>
-            <button class="ms-add-btn" type="button" data-ms="${field.key}">
-              <span class="icon icon-sm">add</span> add channel
-            </button>
-            <div class="ms-dropdown" id="ms-drop-${field.key}" hidden></div>
-          </div>
-          <span class="field-hint">${esc(field.hint)}</span>
-        </div>`;
+            return `<div class="field-row ${dc}">
+        <span class="f-label">${esc(field.label)}</span>
+        ${renderMultiSelect(`f-${field.key}`, field.key, val, "channels")}
+        <span class="f-hint">${esc(field.hint)}</span>
+      </div>`;
+        }
+
+        if (
+            field.hint.includes("comma-separated permissions") ||
+            field.hint.includes("comma-separated perms")
+        ) {
+            return `<div class="field-row ${dc}">
+        <span class="f-label">${esc(field.label)}</span>
+        ${renderPermSelect(`f-${field.key}`, field.key, val)}
+        <span class="f-hint">${esc(field.hint)}</span>
+      </div>`;
         }
 
         const isArea = field.type === "textarea";
-        const inputType = field.type === "number" ? "number" : "text";
-        const placeholder = field.default
+        const ph = field.default
             ? `${esc(field.hint)} (default: ${esc(field.default)})`
             : esc(field.hint);
 
-        return `
-      <div class="field-row ${dirtyClass}">
-        <label class="field-label" for="f-${field.key}">${esc(field.label)}</label>
-        <div class="field ${isDirty ? "field--dirty" : ""}">
-          ${
-              isArea
-                  ? `<textarea id="f-${field.key}" data-key="${field.key}" data-type="${field.type}" placeholder="${placeholder}" rows="3">${esc(val)}</textarea>`
-                  : `<input id="f-${field.key}" type="${inputType}" data-key="${field.key}" data-type="${field.type}" placeholder="${placeholder}" value="${esc(val)}" />`
-          }
-          ${val ? `<button class="clear-btn" data-clear="${field.key}" aria-label="clear"><span class="icon icon-sm">close</span></button>` : ""}
-        </div>
-        ${field.hint ? `<span class="field-hint">${esc(field.hint)}</span>` : ""}
-      </div>`;
+        return `<div class="field-row ${dc}">
+      <label class="f-label" for="f-${field.key}">${esc(field.label)}</label>
+      <div class="f-input-wrap ${dirty ? "f-input-wrap--dirty" : ""}">
+        ${
+            isArea
+                ? `<textarea id="f-${field.key}" data-key="${field.key}" data-type="${field.type}" placeholder="${ph}" rows="3">${esc(val)}</textarea>`
+                : `<input id="f-${field.key}" type="${field.type === "number" ? "number" : "text"}" data-key="${field.key}" data-type="${field.type}" placeholder="${ph}" value="${esc(val)}" />`
+        }
+        ${val ? `<button class="clear-btn" data-clear="${field.key}"><span class="icon icon-sm">close</span></button>` : ""}
+      </div>
+      ${field.hint ? `<span class="f-hint">${esc(field.hint)}</span>` : ""}
+    </div>`;
     }
 
     function renderChannelOptions(selected: string): string {
@@ -513,201 +633,334 @@ import Base from "../layouts/base.astro";
         return out;
     }
 
-    function renderRoleOptions(selected: string): string {
-        if (!roles.length)
-            return selected
-                ? `<option value="${esc(selected)}" selected>@${esc(selected)}</option>`
-                : "";
-        return roles
-            .map(
-                (r) =>
-                    `<option value="${r.id}" ${r.id === selected ? "selected" : ""} data-color="${esc(r.color)}">@ ${esc(r.name)}</option>`,
-            )
-            .join("");
+    function renderRoleSelect(
+        id: string,
+        key: string,
+        selected: string,
+        dtype: string,
+    ): string {
+        return `<div class="role-select" id="${id}" data-key="${key}" data-type="${dtype}" data-value="${esc(selected)}" tabindex="0">
+      <div class="role-select-display" id="${id}-display">
+        ${renderRoleDisplay(selected)}
+      </div>
+      <div class="role-dropdown" id="${id}-drop" hidden>
+        <div class="role-search-wrap">
+          <span class="icon icon-sm">search</span>
+          <input class="role-search" placeholder="search roles..." data-rs="${key}" />
+        </div>
+        <div class="role-options" id="${id}-opts">
+          ${renderRoleOptions(selected, key)}
+        </div>
+      </div>
+    </div>`;
     }
 
-    function bindFieldEvents(): void {
-        const fields = el("fields");
-
-        // toggles
-        fields
-            .querySelectorAll<HTMLInputElement>("input[data-type='toggle']")
-            .forEach((input) => {
-                input.addEventListener("change", () =>
-                    onFieldChange(
-                        input.dataset["key"] ?? "",
-                        input.checked ? "true" : "false",
-                    ),
-                );
-            });
-
-        // selects
-        fields
-            .querySelectorAll<HTMLSelectElement>("select.md-select")
-            .forEach((sel) => {
-                sel.addEventListener("change", () =>
-                    onFieldChange(sel.dataset["key"] ?? "", sel.value),
-                );
-            });
-
-        // text/textarea/number
-        fields
-            .querySelectorAll<
-                HTMLInputElement | HTMLTextAreaElement
-            >("input[data-key]:not([data-type='toggle']), textarea[data-key]")
-            .forEach((input) => {
-                input.addEventListener("input", () =>
-                    onFieldChange(
-                        input.dataset["key"] ?? "",
-                        (input as HTMLInputElement).value.trim(),
-                    ),
-                );
-            });
-
-        // clear buttons
-        fields
-            .querySelectorAll<HTMLButtonElement>("[data-clear]")
-            .forEach((btn) => {
-                btn.addEventListener("click", () =>
-                    clearField(btn.dataset["clear"] ?? ""),
-                );
-            });
-
-        // multi-select
-        fields.querySelectorAll<HTMLElement>(".multi-select").forEach((ms) => {
-            const key = ms.dataset["key"] ?? "";
-            const type = ms.dataset["type"] as "roles" | "channels";
-            const valStr = ms.dataset["value"] ?? "";
-            const ids = valStr
-                ? valStr
-                      .split(",")
-                      .map((s) => s.trim())
-                      .filter(Boolean)
-                : [];
-            renderMultiTags(key, ids, type);
-        });
-
-        fields
-            .querySelectorAll<HTMLButtonElement>("[data-ms]")
-            .forEach((btn) => {
-                btn.addEventListener("click", (e) => {
-                    e.stopPropagation();
-                    toggleMultiDropdown(btn.dataset["ms"] ?? "");
-                });
-            });
-
-        document.addEventListener("click", closeAllDropdowns, { once: false });
+    function renderRoleDisplay(selected: string): string {
+        if (!selected)
+            return `<span class="role-placeholder">— none —</span><span class="icon icon-sm">expand_more</span>`;
+        const role = roles.find((r) => r.id === selected);
+        const name = role?.name ?? selected;
+        const color = role?.color ?? "#99aab5";
+        return `<span class="role-dot" style="background:${color}"></span><span>@ ${esc(name)}</span><span class="icon icon-sm">expand_more</span>`;
     }
 
-    function renderMultiTags(
+    function renderRoleOptions(
+        selected: string,
+        key: string,
+        filter = "",
+    ): string {
+        const filtered = filter
+            ? roles.filter((r) =>
+                  r.name.toLowerCase().includes(filter.toLowerCase()),
+              )
+            : roles;
+        const none = `<div class="role-opt ${!selected ? "role-opt--active" : ""}" data-key="${key}" data-id="">— none —</div>`;
+        return (
+            none +
+            filtered
+                .map(
+                    (r) => `
+      <div class="role-opt ${r.id === selected ? "role-opt--active" : ""}" data-key="${key}" data-id="${r.id}">
+        <span class="role-dot" style="background:${r.color}"></span>@ ${esc(r.name)}
+      </div>
+    `,
+                )
+                .join("")
+        );
+    }
+
+    function renderMultiSelect(
+        id: string,
+        key: string,
+        val: string,
+        dtype: "roles" | "channels",
+    ): string {
+        return `<div class="multi-select" id="${id}" data-key="${key}" data-type="${dtype}" data-value="${esc(val)}">
+      <div class="ms-tags" id="${id}-tags"></div>
+      <button class="ms-add" type="button" data-ms="${key}" data-mstype="${dtype}">
+        <span class="icon icon-sm">add</span> add ${dtype === "roles" ? "role" : "channel"}
+      </button>
+      <div class="ms-drop" id="${id}-drop" hidden></div>
+    </div>`;
+    }
+
+    function renderPermSelect(id: string, key: string, val: string): string {
+        return `<div class="multi-select" id="${id}" data-key="${key}" data-type="perms" data-value="${esc(val)}">
+      <div class="ms-tags" id="${id}-tags"></div>
+      <button class="ms-add" type="button" data-ms="${key}" data-mstype="perms">
+        <span class="icon icon-sm">add</span> add permission
+      </button>
+      <div class="ms-drop" id="${id}-drop" hidden></div>
+    </div>`;
+    }
+
+    function initMultiSelect(
+        id: string,
+        key: string,
+        dtype: "roles" | "channels" | "perms",
+    ): void {
+        const ms = document.getElementById(id);
+        if (!ms) return;
+        const val = ms.dataset["value"] ?? "";
+        const ids = val
+            ? val
+                  .split(",")
+                  .map((s) => s.trim())
+                  .filter(Boolean)
+            : [];
+        refreshMultiTags(id, key, ids, dtype);
+    }
+
+    function refreshMultiTags(
+        id: string,
         key: string,
         ids: string[],
-        type: "roles" | "channels",
+        dtype: "roles" | "channels" | "perms",
     ): void {
-        const tagsEl = document.getElementById(`ms-tags-${key}`);
+        const tagsEl = document.getElementById(`${id}-tags`);
         if (!tagsEl) return;
-        const source = type === "roles" ? roles : channels;
+        const source =
+            dtype === "roles"
+                ? roles
+                : dtype === "channels"
+                  ? channels
+                  : PERMISSIONS.map((p) => ({ id: p, name: p, color: "" }));
         tagsEl.innerHTML = ids
-            .map((id) => {
-                const item = source.find((x) => x.id === id);
-                const label = item ? item.name : id;
+            .map((sid) => {
+                const item = source.find(
+                    (x) => (typeof x === "string" ? x : x.id) === sid,
+                );
+                const name = item
+                    ? typeof item === "string"
+                        ? item
+                        : item.name
+                    : sid;
                 const dot =
-                    type === "roles" && item
+                    dtype === "roles" && item && typeof item !== "string"
                         ? `<span class="role-dot" style="background:${(item as Role).color}"></span>`
                         : "";
-                const prefix = type === "channels" ? "# " : "@ ";
+                const prefix =
+                    dtype === "channels" ? "# " : dtype === "roles" ? "@ " : "";
                 return `<span class="ms-chip">
-        ${dot}${prefix}${esc(label)}
-        <button class="ms-remove" data-key="${key}" data-id="${id}" aria-label="remove">
-          <span class="icon icon-sm">close</span>
-        </button>
+        ${dot}${prefix}${esc(name)}
+        <button class="ms-rm" data-key="${key}" data-id="${sid}"><span class="icon icon-sm">close</span></button>
       </span>`;
             })
             .join("");
 
-        tagsEl
-            .querySelectorAll<HTMLButtonElement>(".ms-remove")
-            .forEach((btn) => {
-                btn.addEventListener("click", (e) => {
-                    e.stopPropagation();
-                    const k = btn.dataset["key"] ?? "";
-                    const id = btn.dataset["id"] ?? "";
-                    const ms = document.getElementById(`f-${k}`);
-                    if (!ms) return;
-                    const current = ms.dataset["value"] ?? "";
-                    const updated = current
-                        .split(",")
-                        .filter((s) => s.trim() !== id)
-                        .join(",");
-                    ms.dataset["value"] = updated;
-                    onFieldChange(k, updated);
-                    renderMultiTags(
-                        k,
-                        updated ? updated.split(",").filter(Boolean) : [],
-                        type,
-                    );
-                });
-            });
-    }
-
-    function toggleMultiDropdown(key: string): void {
-        const drop = document.getElementById(`ms-drop-${key}`);
-        const ms = document.getElementById(`f-${key}`);
-        if (!drop || !ms) return;
-        if (!drop.hidden) {
-            drop.hidden = true;
-            return;
-        }
-
-        const type = ms.dataset["type"] as "roles" | "channels";
-        const current = ms.dataset["value"] ?? "";
-        const selected = new Set(current.split(",").filter(Boolean));
-        const source = type === "roles" ? roles : channels;
-
-        if (!source.length) {
-            drop.innerHTML = `<div class="ms-empty">no ${type} found</div>`;
-        } else {
-            const prefix = type === "channels" ? "#" : "@";
-            drop.innerHTML = source
-                .map((item) => {
-                    const isSelected = selected.has(item.id);
-                    const dot =
-                        type === "roles"
-                            ? `<span class="role-dot" style="background:${(item as Role).color}"></span>`
-                            : "";
-                    return `<div class="ms-option ${isSelected ? "ms-option--selected" : ""}" data-key="${key}" data-id="${item.id}" data-type="${type}" role="option" aria-selected="${isSelected}">
-          ${dot}
-          <span>${prefix} ${esc(item.name)}</span>
-          ${isSelected ? '<span class="icon icon-sm">check</span>' : ""}
-        </div>`;
-                })
-                .join("");
-        }
-
-        drop.hidden = false;
-        drop.querySelectorAll<HTMLElement>(".ms-option").forEach((opt) => {
-            opt.addEventListener("click", (e) => {
+        tagsEl.querySelectorAll<HTMLButtonElement>(".ms-rm").forEach((btn) => {
+            btn.addEventListener("click", (e) => {
                 e.stopPropagation();
-                const k = opt.dataset["key"] ?? "";
-                const id = opt.dataset["id"] ?? "";
-                const t = opt.dataset["type"] as "roles" | "channels";
+                const k = btn.dataset["key"] ?? "";
+                const sid = btn.dataset["id"] ?? "";
                 const msEl = document.getElementById(`f-${k}`);
                 if (!msEl) return;
                 const cur = msEl.dataset["value"] ?? "";
-                const ids = new Set(cur.split(",").filter(Boolean));
-                ids.has(id) ? ids.delete(id) : ids.add(id);
-                const updated = [...ids].join(",");
+                const updated = cur
+                    .split(",")
+                    .filter((s) => s.trim() !== sid)
+                    .join(",");
                 msEl.dataset["value"] = updated;
                 onFieldChange(k, updated);
-                renderMultiTags(k, [...ids], t);
-                toggleMultiDropdown(k);
+                refreshMultiTags(
+                    `f-${k}`,
+                    k,
+                    updated ? updated.split(",").filter(Boolean) : [],
+                    dtype,
+                );
             });
         });
     }
 
-    function closeAllDropdowns(): void {
-        document.querySelectorAll<HTMLElement>(".ms-dropdown").forEach((d) => {
-            d.hidden = true;
+    function toggleMultiDrop(key: string): void {
+        const ms = document.getElementById(`f-${key}`);
+        const drop = document.getElementById(`f-${key}-drop`);
+        if (!ms || !drop) return;
+        if (!drop.hidden) {
+            drop.hidden = true;
+            return;
+        }
+        const dtype = ms.dataset["type"] as "roles" | "channels" | "perms";
+        const cur = new Set(
+            (ms.dataset["value"] ?? "").split(",").filter(Boolean),
+        );
+        const source =
+            dtype === "roles"
+                ? roles
+                : dtype === "channels"
+                  ? channels
+                  : PERMISSIONS.map((p) => ({ id: p, name: p }));
+
+        drop.innerHTML = source.length
+            ? source
+                  .map((item) => {
+                      const sid = typeof item === "string" ? item : item.id;
+                      const name = typeof item === "string" ? item : item.name;
+                      const dot =
+                          dtype === "roles" &&
+                          typeof item !== "string" &&
+                          "color" in item
+                              ? `<span class="role-dot" style="background:${(item as Role).color}"></span>`
+                              : "";
+                      const prefix =
+                          dtype === "channels"
+                              ? "# "
+                              : dtype === "roles"
+                                ? "@ "
+                                : "";
+                      return `<div class="ms-opt ${cur.has(sid) ? "ms-opt--sel" : ""}" data-key="${key}" data-id="${sid}">
+        ${dot}${prefix}${esc(name)}
+        ${cur.has(sid) ? '<span class="icon icon-sm">check</span>' : ""}
+      </div>`;
+                  })
+                  .join("")
+            : `<div class="ms-empty">none found</div>`;
+
+        drop.hidden = false;
+        drop.querySelectorAll<HTMLElement>(".ms-opt").forEach((opt) => {
+            opt.addEventListener("click", (e) => {
+                e.stopPropagation();
+                const k = opt.dataset["key"] ?? "";
+                const sid = opt.dataset["id"] ?? "";
+                const msEl = document.getElementById(`f-${k}`);
+                if (!msEl) return;
+                const ids = new Set(
+                    (msEl.dataset["value"] ?? "").split(",").filter(Boolean),
+                );
+                ids.has(sid) ? ids.delete(sid) : ids.add(sid);
+                const updated = [...ids].join(",");
+                msEl.dataset["value"] = updated;
+                onFieldChange(k, updated);
+                const dtp = msEl.dataset["type"] as
+                    | "roles"
+                    | "channels"
+                    | "perms";
+                refreshMultiTags(`f-${k}`, k, [...ids], dtp);
+                toggleMultiDrop(k);
+            });
+        });
+    }
+
+    function bindFieldEvents(): void {
+        const fs = el("fields");
+
+        fs.querySelectorAll<HTMLInputElement>(
+            "input[data-type='toggle']",
+        ).forEach((inp) => {
+            inp.addEventListener("change", () =>
+                onFieldChange(
+                    inp.dataset["key"] ?? "",
+                    inp.checked ? "true" : "false",
+                ),
+            );
+        });
+
+        fs.querySelectorAll<HTMLSelectElement>("select.f-select").forEach(
+            (sel) => {
+                sel.addEventListener("change", () =>
+                    onFieldChange(sel.dataset["key"] ?? "", sel.value),
+                );
+            },
+        );
+
+        fs.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
+            "input[data-key]:not([data-type='toggle']), textarea[data-key]",
+        ).forEach((inp) => {
+            inp.addEventListener("input", () =>
+                onFieldChange(
+                    inp.dataset["key"] ?? "",
+                    (inp as HTMLInputElement).value.trim(),
+                ),
+            );
+        });
+
+        fs.querySelectorAll<HTMLButtonElement>("[data-clear]").forEach(
+            (btn) => {
+                btn.addEventListener("click", () =>
+                    clearField(btn.dataset["clear"] ?? ""),
+                );
+            },
+        );
+
+        fs.querySelectorAll<HTMLElement>(".multi-select").forEach((ms) => {
+            const k = ms.dataset["key"] ?? "";
+            const dtype = ms.dataset["type"] as "roles" | "channels" | "perms";
+            initMultiSelect(`f-${k}`, k, dtype);
+        });
+
+        fs.querySelectorAll<HTMLButtonElement>("[data-ms]").forEach((btn) => {
+            btn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                toggleMultiDrop(btn.dataset["ms"] ?? "");
+            });
+        });
+
+        fs.querySelectorAll<HTMLElement>(".role-select").forEach((rs) => {
+            const k = rs.dataset["key"] ?? "";
+            const id = `f-${k}`;
+            const display = document.getElementById(`${id}-display`);
+            const drop = document.getElementById(`${id}-drop`);
+            if (!display || !drop) return;
+
+            display.addEventListener("click", (e) => {
+                e.stopPropagation();
+                drop.hidden = !drop.hidden;
+            });
+
+            const searchEl = drop.querySelector<HTMLInputElement>(
+                `[data-rs="${k}"]`,
+            );
+            searchEl?.addEventListener("input", () => {
+                const opts = document.getElementById(`${id}-opts`);
+                if (opts)
+                    opts.innerHTML = renderRoleOptions(
+                        rs.dataset["value"] ?? "",
+                        k,
+                        searchEl.value,
+                    );
+                bindRoleOptClicks(k, id, rs, drop);
+            });
+
+            bindRoleOptClicks(k, id, rs, drop);
+        });
+    }
+
+    function bindRoleOptClicks(
+        key: string,
+        id: string,
+        rs: HTMLElement,
+        drop: HTMLElement,
+    ): void {
+        drop.querySelectorAll<HTMLElement>(".role-opt").forEach((opt) => {
+            opt.addEventListener("click", (e) => {
+                e.stopPropagation();
+                const val = opt.dataset["id"] ?? "";
+                rs.dataset["value"] = val;
+                onFieldChange(key, val);
+                const disp = document.getElementById(`${id}-display`);
+                if (disp) disp.innerHTML = renderRoleDisplay(val);
+                drop.hidden = true;
+            });
         });
     }
 
@@ -722,33 +975,29 @@ import Base from "../layouts/base.astro";
             .getElementById(`f-${key}`)
             ?.closest<HTMLElement>(".field-row");
         if (row)
-            row.classList.toggle(
-                "field-row--dirty",
-                pendingChanges[key] !== undefined || key in pendingChanges,
-            );
+            row.classList.toggle("field-row--dirty", key in pendingChanges);
         updateSaveState();
     }
 
     function clearField(key: string): void {
-        const input = document.querySelector<
+        const inp = document.querySelector<
             HTMLInputElement | HTMLTextAreaElement
         >(`[data-key="${key}"]`);
-        if (!input) return;
-        (input as HTMLInputElement).value = "";
+        if (!inp) return;
+        (inp as HTMLInputElement).value = "";
         pendingChanges[key] = null;
-        const row = input.closest<HTMLElement>(".field-row");
-        if (row) row.classList.add("field-row--dirty");
+        document
+            .getElementById(`f-${key}`)
+            ?.closest<HTMLElement>(".field-row")
+            ?.classList.add("field-row--dirty");
         updateSaveState();
-        const clearBtn = document.querySelector<HTMLButtonElement>(
-            `[data-clear="${key}"]`,
-        );
-        if (clearBtn) clearBtn.remove();
+        document.querySelector(`[data-clear="${key}"]`)?.remove();
     }
 
     function updateSaveState(): void {
-        const hasChanges = Object.keys(pendingChanges).length > 0;
-        el<HTMLButtonElement>("save-btn").disabled = !hasChanges;
-        el<HTMLButtonElement>("discard-btn").disabled = !hasChanges;
+        const has = Object.keys(pendingChanges).length > 0;
+        el<HTMLButtonElement>("save-btn").disabled = !has;
+        el<HTMLButtonElement>("discard-btn").disabled = !has;
     }
 
     async function saveChanges(): Promise<void> {
@@ -759,17 +1008,15 @@ import Base from "../layouts/base.astro";
         try {
             await setConfig(activeGuild.id, pendingChanges);
             for (const [k, v] of Object.entries(pendingChanges)) {
-                if (v) {
-                    serverConfig[k] = v;
-                } else {
-                    delete serverConfig[k];
-                }
+                if (v) serverConfig[k] = v;
+                else delete serverConfig[k];
             }
             pendingChanges = {};
             snack("changes saved");
-            await switchCategory(activeCategory, false);
+            const cat = CONFIG_CATEGORIES.find((c) => c.key === activeView);
+            if (cat) renderConfigView(cat);
         } catch {
-            snack("failed to save changes", true);
+            snack("failed to save", true);
         } finally {
             saveBtn.disabled = false;
             el("save-label").textContent = "save";
@@ -777,168 +1024,725 @@ import Base from "../layouts/base.astro";
         }
     }
 
+    async function loadAlertsView(): Promise<void> {
+        if (!activeGuild) return;
+        try {
+            [twitchAlerts, youtubeAlerts] = await Promise.all([
+                getTwitchAlerts(activeGuild.id),
+                getYoutubeAlerts(activeGuild.id),
+            ]);
+        } catch {
+            snack("failed to load alerts", true);
+        }
+        renderAlertsView();
+        showView("alerts-view");
+    }
+
+    function renderAlertsView(): void {
+        const tabs = el("alerts-tabs");
+        tabs.querySelectorAll(".tab").forEach((t) => {
+            t.classList.toggle(
+                "active",
+                (t as HTMLElement).dataset["tab"] === activeAlertsTab,
+            );
+        });
+
+        const content = el("alerts-content");
+        if (activeAlertsTab === "twitch") {
+            content.innerHTML = `
+        <div class="alert-list" id="twitch-list">
+          ${
+              twitchAlerts.length === 0
+                  ? '<p class="empty-msg">no twitch alerts configured</p>'
+                  : twitchAlerts
+                        .map(
+                            (a) => `
+              <div class="alert-row">
+                <div class="alert-info">
+                  <span class="alert-name">${esc(a.streamer)}</span>
+                  <span class="alert-ch"># ${esc(channels.find((c) => c.id === a.channel_id)?.name ?? a.channel_id)}</span>
+                  ${a.message ? `<span class="alert-msg">${esc(a.message)}</span>` : ""}
+                </div>
+                <button class="btn-danger-sm" data-rm-twitch="${esc(a.streamer)}">
+                  <span class="icon icon-sm">delete</span>
+                </button>
+              </div>
+            `,
+                        )
+                        .join("")
+          }
+        </div>
+        <div class="add-form">
+          <h3 class="form-title">add twitch alert</h3>
+          <div class="form-row">
+            <input class="f-text" id="tw-streamer" placeholder="twitch username" />
+            <select class="f-select" id="tw-channel">
+              <option value="">select channel</option>
+              ${renderChannelOptions("")}
+            </select>
+          </div>
+          <input class="f-text" id="tw-msg" placeholder="custom message (optional) — {streamer}, {title}, {game}, {url}" />
+          <button class="btn-primary" id="tw-add-btn">
+            <span class="icon icon-sm">add</span> add alert
+          </button>
+        </div>`;
+
+            content
+                .querySelectorAll<HTMLButtonElement>("[data-rm-twitch]")
+                .forEach((btn) => {
+                    btn.addEventListener("click", async () => {
+                        const s = btn.dataset["rmTwitch"] ?? "";
+                        if (!activeGuild) return;
+                        try {
+                            await removeTwitchAlert(activeGuild.id, s);
+                            twitchAlerts = twitchAlerts.filter(
+                                (a) => a.streamer !== s,
+                            );
+                            renderAlertsView();
+                            snack(`removed ${s}`);
+                        } catch {
+                            snack("failed to remove", true);
+                        }
+                    });
+                });
+
+            document
+                .getElementById("tw-add-btn")
+                ?.addEventListener("click", async () => {
+                    if (!activeGuild) return;
+                    const streamer = (
+                        document.getElementById(
+                            "tw-streamer",
+                        ) as HTMLInputElement
+                    ).value.trim();
+                    const channelId = (
+                        document.getElementById(
+                            "tw-channel",
+                        ) as HTMLSelectElement
+                    ).value;
+                    const msg =
+                        (
+                            document.getElementById(
+                                "tw-msg",
+                            ) as HTMLInputElement
+                        ).value.trim() || null;
+                    if (!streamer || !channelId) {
+                        snack("streamer and channel required", true);
+                        return;
+                    }
+                    try {
+                        await addTwitchAlert(
+                            activeGuild.id,
+                            streamer,
+                            channelId,
+                            msg,
+                        );
+                        twitchAlerts = await getTwitchAlerts(activeGuild.id);
+                        renderAlertsView();
+                        snack(`added alert for ${streamer}`);
+                    } catch {
+                        snack("failed to add", true);
+                    }
+                });
+        } else {
+            content.innerHTML = `
+        <div class="alert-list" id="yt-list">
+          ${
+              youtubeAlerts.length === 0
+                  ? '<p class="empty-msg">no youtube alerts configured</p>'
+                  : youtubeAlerts
+                        .map(
+                            (a) => `
+              <div class="alert-row">
+                <div class="alert-info">
+                  <span class="alert-name">${esc(a.channel_id)}</span>
+                  <span class="alert-ch"># ${esc(channels.find((c) => c.id === a.discord_channel_id)?.name ?? a.discord_channel_id)}</span>
+                  ${a.message ? `<span class="alert-msg">${esc(a.message)}</span>` : ""}
+                </div>
+                <button class="btn-danger-sm" data-rm-yt="${esc(a.channel_id)}">
+                  <span class="icon icon-sm">delete</span>
+                </button>
+              </div>
+            `,
+                        )
+                        .join("")
+          }
+        </div>
+        <div class="add-form">
+          <h3 class="form-title">add youtube alert</h3>
+          <div class="form-row">
+            <input class="f-text" id="yt-chid" placeholder="youtube channel id (UCxxxxxxx)" />
+            <select class="f-select" id="yt-channel">
+              <option value="">select channel</option>
+              ${renderChannelOptions("")}
+            </select>
+          </div>
+          <input class="f-text" id="yt-msg" placeholder="custom message (optional) — {channel}, {title}, {url}" />
+          <button class="btn-primary" id="yt-add-btn">
+            <span class="icon icon-sm">add</span> add alert
+          </button>
+        </div>`;
+
+            content
+                .querySelectorAll<HTMLButtonElement>("[data-rm-yt]")
+                .forEach((btn) => {
+                    btn.addEventListener("click", async () => {
+                        const id = btn.dataset["rmYt"] ?? "";
+                        if (!activeGuild) return;
+                        try {
+                            await removeYoutubeAlert(activeGuild.id, id);
+                            youtubeAlerts = youtubeAlerts.filter(
+                                (a) => a.channel_id !== id,
+                            );
+                            renderAlertsView();
+                            snack("removed");
+                        } catch {
+                            snack("failed to remove", true);
+                        }
+                    });
+                });
+
+            document
+                .getElementById("yt-add-btn")
+                ?.addEventListener("click", async () => {
+                    if (!activeGuild) return;
+                    const chId = (
+                        document.getElementById("yt-chid") as HTMLInputElement
+                    ).value.trim();
+                    const discordCh = (
+                        document.getElementById(
+                            "yt-channel",
+                        ) as HTMLSelectElement
+                    ).value;
+                    const msg =
+                        (
+                            document.getElementById(
+                                "yt-msg",
+                            ) as HTMLInputElement
+                        ).value.trim() || null;
+                    if (!chId || !discordCh) {
+                        snack("channel id and discord channel required", true);
+                        return;
+                    }
+                    try {
+                        await addYoutubeAlert(
+                            activeGuild.id,
+                            chId,
+                            discordCh,
+                            msg,
+                        );
+                        youtubeAlerts = await getYoutubeAlerts(activeGuild.id);
+                        renderAlertsView();
+                        snack(`added alert for ${chId}`);
+                    } catch {
+                        snack("failed to add", true);
+                    }
+                });
+        }
+    }
+
+    async function loadResourcesView(): Promise<void> {
+        if (!activeGuild) return;
+        try {
+            resources = await getResources(activeGuild.id);
+        } catch {
+            snack("failed to load resources", true);
+        }
+        renderResourceList();
+        if (activeResourceName) openResourceEditor(activeResourceName);
+        showView("resources-view");
+    }
+
+    function renderResourceList(): void {
+        const list = el("resource-list");
+        list.innerHTML =
+            resources.length === 0
+                ? '<p class="empty-msg">no resources yet</p>'
+                : resources
+                      .map(
+                          (r) => `
+        <button class="list-item ${activeResourceName === r.name ? "active" : ""}" data-res="${esc(r.name)}">
+          <span class="icon icon-sm">article</span>
+          <span class="li-name">${esc(r.name)}</span>
+        </button>
+      `,
+                      )
+                      .join("");
+
+        list.querySelectorAll<HTMLButtonElement>("[data-res]").forEach(
+            (btn) => {
+                btn.addEventListener("click", () =>
+                    openResourceEditor(btn.dataset["res"] ?? ""),
+                );
+            },
+        );
+    }
+
+    function openResourceEditor(name: string): void {
+        activeResourceName = name;
+        const res = resources.find((r) => r.name === name);
+        renderResourceList();
+        const editor = el("resource-editor");
+        editor.innerHTML = `
+      <div class="editor-header">
+        <div class="editor-name-wrap">
+          <label class="f-label" for="res-name">name</label>
+          <input class="f-text" id="res-name" value="${esc(res?.name ?? name)}" placeholder="resource-name" />
+        </div>
+        <div class="editor-acts">
+          <button class="btn-danger-sm" id="res-del-btn" ${!res ? "disabled" : ""}>
+            <span class="icon icon-sm">delete</span>
+          </button>
+          <button class="btn-primary" id="res-save-btn">
+            <span class="icon icon-sm">save</span> save
+          </button>
+        </div>
+      </div>
+      <label class="f-label" for="res-content">content</label>
+      <textarea class="f-textarea" id="res-content" placeholder="message content, {placeholders}, and {button:name:label:style:action} tags..." rows="12">${esc(res?.content ?? "")}</textarea>
+      <p class="f-hint">placeholders: {user}, {mention}, {server}, {member_count}<br>buttons: {button:name:label:primary:action}</p>
+    `;
+
+        el("res-save-btn").addEventListener("click", async () => {
+            if (!activeGuild) return;
+            const newName = (
+                document.getElementById("res-name") as HTMLInputElement
+            ).value.trim();
+            const content = (
+                document.getElementById("res-content") as HTMLTextAreaElement
+            ).value;
+            if (!newName || !content) {
+                snack("name and content required", true);
+                return;
+            }
+            try {
+                const result = await saveResource(
+                    activeGuild.id,
+                    newName,
+                    content,
+                );
+                resources = await getResources(activeGuild.id);
+                activeResourceName = result.name;
+                renderResourceList();
+                openResourceEditor(result.name);
+                snack("saved");
+            } catch {
+                snack("failed to save", true);
+            }
+        });
+
+        el("res-del-btn")?.addEventListener("click", async () => {
+            if (!activeGuild || !res) return;
+            try {
+                await deleteResource(activeGuild.id, res.name);
+                resources = resources.filter((r) => r.name !== res.name);
+                activeResourceName = null;
+                renderResourceList();
+                el("resource-editor").innerHTML =
+                    '<div class="editor-empty">select a resource to edit</div>';
+                snack("deleted");
+            } catch {
+                snack("failed to delete", true);
+            }
+        });
+    }
+
+    async function loadContainersView(): Promise<void> {
+        if (!activeGuild) return;
+        try {
+            containers = await getContainers(activeGuild.id);
+        } catch {
+            snack("failed to load containers", true);
+        }
+        renderContainerList();
+        if (activeContainerName) openContainerEditor(activeContainerName);
+        showView("containers-view");
+    }
+
+    function renderContainerList(): void {
+        const list = el("container-list");
+        list.innerHTML =
+            containers.length === 0
+                ? '<p class="empty-msg">no containers yet</p>'
+                : containers
+                      .map(
+                          (c) => `
+        <button class="list-item ${activeContainerName === c.name ? "active" : ""}" data-cont="${esc(c.name)}">
+          <span class="icon icon-sm">view_compact</span>
+          <span class="li-name">${esc(c.name)}</span>
+          <span class="li-meta">${c.items.length} item${c.items.length !== 1 ? "s" : ""}</span>
+        </button>
+      `,
+                      )
+                      .join("");
+
+        list.querySelectorAll<HTMLButtonElement>("[data-cont]").forEach(
+            (btn) => {
+                btn.addEventListener("click", () =>
+                    openContainerEditor(btn.dataset["cont"] ?? ""),
+                );
+            },
+        );
+    }
+
+    function openContainerEditor(name: string): void {
+        activeContainerName = name;
+        const cont = containers.find((c) => c.name === name);
+        renderContainerList();
+        const editor = el("container-editor");
+        const items: ContainerItem[] = cont ? [...cont.items] : [];
+        const accent = cont?.accent_color ?? null;
+
+        function renderItems(): string {
+            if (!items.length) return '<p class="empty-msg">no items</p>';
+            return items
+                .map((item, i) => {
+                    let preview = "";
+                    if (item.type === "text")
+                        preview = (item.content ?? "").slice(0, 50);
+                    else if (item.type === "sep")
+                        preview = `separator ${item.large ? "(large)" : "(small)"}`;
+                    else if (item.type === "gallery")
+                        preview = `gallery (${(item.items ?? []).length} image${(item.items ?? []).length !== 1 ? "s" : ""})`;
+                    return `<div class="cont-item">
+          <span class="icon icon-sm">${item.type === "text" ? "text_fields" : item.type === "sep" ? "horizontal_rule" : "photo_library"}</span>
+          <span class="cont-item-preview">${esc(preview)}</span>
+          <button class="ms-rm cont-rm" data-idx="${i}"><span class="icon icon-sm">close</span></button>
+        </div>`;
+                })
+                .join("");
+        }
+
+        editor.innerHTML = `
+      <div class="editor-header">
+        <div class="editor-name-wrap">
+          <label class="f-label" for="cont-name">name</label>
+          <input class="f-text" id="cont-name" value="${esc(cont?.name ?? name)}" placeholder="container-name" />
+        </div>
+        <div class="editor-acts">
+          <button class="btn-danger-sm" id="cont-del-btn" ${!cont ? "disabled" : ""}>
+            <span class="icon icon-sm">delete</span>
+          </button>
+          <button class="btn-primary" id="cont-save-btn">
+            <span class="icon icon-sm">save</span> save
+          </button>
+        </div>
+      </div>
+      <div class="accent-row">
+        <label class="f-label">accent color</label>
+        <input type="color" class="color-input" id="cont-accent" value="${accent !== null ? `#${accent.toString(16).padStart(6, "0")}` : "#5865f2"}" />
+        <label class="switch switch-sm">
+          <input type="checkbox" id="cont-accent-on" ${accent !== null ? "checked" : ""} />
+          <span class="switch-track"><span class="switch-thumb"></span></span>
+        </label>
+        <span class="f-hint">enable accent</span>
+      </div>
+      <div class="cont-items" id="cont-items">${renderItems()}</div>
+      <div class="cont-add-btns">
+        <button class="btn-ghost-sm" id="ci-text"><span class="icon icon-sm">text_fields</span> add text</button>
+        <button class="btn-ghost-sm" id="ci-sep-sm"><span class="icon icon-sm">horizontal_rule</span> separator</button>
+        <button class="btn-ghost-sm" id="ci-sep-lg"><span class="icon icon-sm">horizontal_rule</span> sep (large)</button>
+        <button class="btn-ghost-sm" id="ci-gallery"><span class="icon icon-sm">photo_library</span> add gallery</button>
+      </div>
+      <div id="cont-text-form" class="cont-inline-form" hidden>
+        <textarea class="f-textarea" id="ci-text-val" placeholder="text content..." rows="4"></textarea>
+        <button class="btn-primary btn-sm" id="ci-text-add">add</button>
+      </div>
+      <div id="cont-gallery-form" class="cont-inline-form" hidden>
+        <textarea class="f-textarea" id="ci-gallery-urls" placeholder="image urls (one per line)" rows="4"></textarea>
+        <button class="btn-primary btn-sm" id="ci-gallery-add">add</button>
+      </div>
+    `;
+
+        function refresh(): void {
+            const ci = document.getElementById("cont-items");
+            if (ci) ci.innerHTML = renderItems();
+            bindRemoveClicks();
+        }
+
+        function bindRemoveClicks(): void {
+            document
+                .querySelectorAll<HTMLButtonElement>(".cont-rm")
+                .forEach((btn) => {
+                    btn.addEventListener("click", () => {
+                        const idx = parseInt(btn.dataset["idx"] ?? "0");
+                        items.splice(idx, 1);
+                        refresh();
+                    });
+                });
+        }
+
+        bindRemoveClicks();
+
+        el("ci-text").addEventListener("click", () => {
+            el("cont-text-form").hidden = !el("cont-text-form").hidden;
+            el("cont-gallery-form").hidden = true;
+        });
+
+        el("ci-sep-sm").addEventListener("click", () => {
+            items.push({ type: "sep", large: false });
+            refresh();
+        });
+        el("ci-sep-lg").addEventListener("click", () => {
+            items.push({ type: "sep", large: true });
+            refresh();
+        });
+
+        el("ci-gallery").addEventListener("click", () => {
+            el("cont-gallery-form").hidden = !el("cont-gallery-form").hidden;
+            el("cont-text-form").hidden = true;
+        });
+
+        el("ci-text-add").addEventListener("click", () => {
+            const val = (
+                document.getElementById("ci-text-val") as HTMLTextAreaElement
+            ).value;
+            if (val.trim()) {
+                items.push({ type: "text", content: val });
+                (
+                    document.getElementById(
+                        "ci-text-val",
+                    ) as HTMLTextAreaElement
+                ).value = "";
+                el("cont-text-form").hidden = true;
+                refresh();
+            }
+        });
+
+        el("ci-gallery-add").addEventListener("click", () => {
+            const raw = (
+                document.getElementById(
+                    "ci-gallery-urls",
+                ) as HTMLTextAreaElement
+            ).value;
+            const urls = raw
+                .split("\n")
+                .map((u) => u.trim())
+                .filter(Boolean);
+            if (urls.length) {
+                items.push({
+                    type: "gallery",
+                    items: urls.map((url) => ({ url })),
+                });
+                (
+                    document.getElementById(
+                        "ci-gallery-urls",
+                    ) as HTMLTextAreaElement
+                ).value = "";
+                el("cont-gallery-form").hidden = true;
+                refresh();
+            }
+        });
+
+        el("cont-save-btn").addEventListener("click", async () => {
+            if (!activeGuild) return;
+            const newName = (
+                document.getElementById("cont-name") as HTMLInputElement
+            ).value.trim();
+            if (!newName) {
+                snack("name required", true);
+                return;
+            }
+            const accentOn = (
+                document.getElementById("cont-accent-on") as HTMLInputElement
+            ).checked;
+            const accentHex = (
+                document.getElementById("cont-accent") as HTMLInputElement
+            ).value;
+            const accentVal = accentOn
+                ? parseInt(accentHex.slice(1), 16)
+                : null;
+            try {
+                const result = await saveContainer(
+                    activeGuild.id,
+                    newName,
+                    items,
+                    accentVal,
+                );
+                containers = await getContainers(activeGuild.id);
+                activeContainerName = result.name;
+                renderContainerList();
+                openContainerEditor(result.name);
+                snack("saved");
+            } catch {
+                snack("failed to save", true);
+            }
+        });
+
+        el("cont-del-btn")?.addEventListener("click", async () => {
+            if (!activeGuild || !cont) return;
+            try {
+                await deleteContainer(activeGuild.id, cont.name);
+                containers = containers.filter((c) => c.name !== cont.name);
+                activeContainerName = null;
+                renderContainerList();
+                el("container-editor").innerHTML =
+                    '<div class="editor-empty">select a container to edit</div>';
+                snack("deleted");
+            } catch {
+                snack("failed to delete", true);
+            }
+        });
+    }
+
+    el("sidebar-guild-btn").addEventListener("click", (e) => {
+        e.stopPropagation();
+        el("guild-menu").hidden ? openGuildMenu() : closeGuildMenu();
+    });
+
+    el("sidebar-toggle").addEventListener("click", () => {
+        el("sidebar").classList.contains("open")
+            ? closeSidebar()
+            : openSidebar();
+    });
+
+    el("sidebar-overlay").addEventListener("click", closeSidebar);
+
     el("save-btn").addEventListener("click", () => void saveChanges());
+
     el("discard-btn").addEventListener("click", () => {
         pendingChanges = {};
-        void switchCategory(activeCategory, false);
-        updateSaveState();
+        const cat = CONFIG_CATEGORIES.find((c) => c.key === activeView);
+        if (cat) renderConfigView(cat);
+    });
+
+    el("new-resource-btn").addEventListener("click", () => {
+        activeResourceName = "__new__";
+        renderResourceList();
+        const editor = el("resource-editor");
+        editor.innerHTML = `
+      <div class="editor-header">
+        <div class="editor-name-wrap">
+          <label class="f-label" for="res-name">name</label>
+          <input class="f-text" id="res-name" placeholder="resource-name" />
+        </div>
+        <div class="editor-acts">
+          <button class="btn-primary" id="res-save-btn">
+            <span class="icon icon-sm">save</span> save
+          </button>
+        </div>
+      </div>
+      <label class="f-label" for="res-content">content</label>
+      <textarea class="f-textarea" id="res-content" placeholder="message content..." rows="12"></textarea>
+      <p class="f-hint">placeholders: {user}, {mention}, {server}, {member_count}<br>buttons: {button:name:label:primary:action}</p>
+    `;
+        el("res-save-btn").addEventListener("click", async () => {
+            if (!activeGuild) return;
+            const n = (
+                document.getElementById("res-name") as HTMLInputElement
+            ).value.trim();
+            const c = (
+                document.getElementById("res-content") as HTMLTextAreaElement
+            ).value;
+            if (!n || !c) {
+                snack("name and content required", true);
+                return;
+            }
+            try {
+                const result = await saveResource(activeGuild.id, n, c);
+                resources = await getResources(activeGuild.id);
+                activeResourceName = result.name;
+                renderResourceList();
+                openResourceEditor(result.name);
+                snack("saved");
+            } catch {
+                snack("failed to save", true);
+            }
+        });
+    });
+
+    el("new-container-btn").addEventListener("click", () => {
+        activeContainerName = "__new__";
+        renderContainerList();
+        openContainerEditor("__new__");
+    });
+
+    el("alerts-tabs")
+        .querySelectorAll<HTMLButtonElement>(".tab")
+        .forEach((tab) => {
+            tab.addEventListener("click", () => {
+                activeAlertsTab = tab.dataset["tab"] ?? "twitch";
+                renderAlertsView();
+            });
+        });
+
+    document.addEventListener("click", () => {
+        closeGuildMenu();
+        document
+            .querySelectorAll<HTMLElement>(".ms-drop, .role-dropdown")
+            .forEach((d) => {
+                d.hidden = true;
+            });
     });
 
     void init();
 </script>
 
 <style>
-    .app {
+    .shell {
+        display: flex;
+        min-height: 100svh;
+        background: var(--md-sys-color-surface);
+    }
+
+    .sidebar-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.4);
+        z-index: 30;
+    }
+
+    .sidebar {
+        width: 240px;
+        flex-shrink: 0;
+        background: var(--md-sys-color-surface-container-low);
+        border-right: 1px solid var(--md-sys-color-outline-variant);
         display: flex;
         flex-direction: column;
-        min-height: 100svh;
-        animation: app-in 0.3s var(--md-easing-standard) both;
-    }
-
-    @keyframes app-in {
-        from {
-            opacity: 0;
-            transform: translateY(6px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-
-    .topnav {
+        height: 100svh;
         position: sticky;
         top: 0;
-        z-index: 20;
-        display: flex;
-        align-items: center;
-        gap: 0;
-        height: 60px;
-        padding: 0 20px;
-        background: var(--md-sys-color-surface-container-low);
+        overflow-y: auto;
+        scrollbar-width: thin;
+    }
+
+    .sidebar-guild-wrap {
+        position: relative;
+        padding: 12px;
         border-bottom: 1px solid var(--md-sys-color-outline-variant);
-        flex-shrink: 0;
     }
 
-    .nav-brand {
+    .sidebar-guild {
+        width: 100%;
         display: flex;
         align-items: center;
-        gap: 8px;
-        color: var(--md-sys-color-primary);
-        flex-shrink: 0;
-        margin-right: 24px;
-    }
-
-    .brand-name {
-        font-size: 0.9375rem;
-        font-weight: 600;
-        letter-spacing: -0.01em;
-        color: var(--md-sys-color-on-surface);
-    }
-
-    .nav-cats {
-        display: flex;
-        align-items: center;
-        gap: 2px;
-        overflow-x: auto;
-        flex: 1;
-        scrollbar-width: none;
-        padding: 0 8px;
-        min-width: 0;
-    }
-
-    .nav-cats::-webkit-scrollbar {
-        display: none;
-    }
-
-    .cat-tab {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        padding: 6px 14px;
-        border: none;
-        border-radius: var(--md-shape-full);
-        background: transparent;
-        color: var(--md-sys-color-on-surface-variant);
-        font-family: inherit;
-        font-size: 0.8125rem;
-        font-weight: 500;
-        cursor: pointer;
-        white-space: nowrap;
-        transition:
-            background var(--md-duration-short),
-            color var(--md-duration-short);
-        position: relative;
-        flex-shrink: 0;
-    }
-
-    .cat-tab:hover {
-        background: color-mix(
-            in srgb,
-            var(--md-sys-color-on-surface) 8%,
-            transparent
-        );
-        color: var(--md-sys-color-on-surface);
-    }
-
-    .cat-tab.active {
-        background: var(--md-sys-color-secondary-container);
-        color: var(--md-sys-color-on-secondary-container);
-    }
-
-    .cat-tab.active .icon {
-        font-variation-settings:
-            "FILL" 1,
-            "wght" 400,
-            "GRAD" 0,
-            "opsz" 20;
-    }
-
-    .nav-end {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        margin-left: 16px;
-        flex-shrink: 0;
-    }
-
-    .server-switcher {
-        position: relative;
-    }
-
-    .server-btn {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 5px 10px 5px 6px;
+        gap: 10px;
+        padding: 8px 10px;
         background: var(--md-sys-color-surface-container);
         border: 1px solid var(--md-sys-color-outline-variant);
-        border-radius: var(--md-shape-full);
+        border-radius: var(--md-shape-md);
         cursor: pointer;
         font-family: inherit;
-        font-size: 0.8125rem;
-        font-weight: 500;
         color: var(--md-sys-color-on-surface);
-        transition:
-            background var(--md-duration-short),
-            border-color var(--md-duration-short);
+        transition: background var(--md-duration-short);
+        text-align: left;
     }
 
-    .server-btn:hover {
+    .sidebar-guild:hover {
         background: var(--md-sys-color-surface-container-high);
-        border-color: var(--md-sys-color-outline);
     }
 
-    .server-icon {
-        width: 24px;
-        height: 24px;
+    .sg-icon {
+        width: 28px;
+        height: 28px;
         border-radius: var(--md-shape-xs);
         object-fit: cover;
+        flex-shrink: 0;
     }
 
-    .server-fallback {
-        width: 24px;
-        height: 24px;
+    .sg-fallback {
+        width: 28px;
+        height: 28px;
         border-radius: var(--md-shape-xs);
         background: var(--md-sys-color-primary-container);
         color: var(--md-sys-color-on-primary-container);
@@ -947,24 +1751,50 @@ import Base from "../layouts/base.astro";
         justify-content: center;
         font-size: 0.75rem;
         font-weight: 600;
+        flex-shrink: 0;
     }
 
-    .server-menu {
+    .sg-text {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .sg-name {
+        font-size: 0.875rem;
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .sg-sub {
+        font-size: 0.6875rem;
+        color: var(--md-sys-color-on-surface-variant);
+    }
+
+    .sg-chevron {
+        flex-shrink: 0;
+        color: var(--md-sys-color-on-surface-variant);
+    }
+
+    .guild-menu {
         position: absolute;
-        top: calc(100% + 8px);
-        right: 0;
+        top: calc(100% - 4px);
+        left: 12px;
+        right: 12px;
         background: var(--md-sys-color-surface-container-high);
         border: 1px solid var(--md-sys-color-outline-variant);
         border-radius: var(--md-shape-lg);
-        min-width: 200px;
-        list-style: none;
         padding: 6px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-        animation: menu-in 0.15s var(--md-easing-standard);
-        z-index: 100;
+        list-style: none;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+        z-index: 50;
+        animation: pop-in 0.12s var(--md-easing-standard);
     }
 
-    @keyframes menu-in {
+    @keyframes pop-in {
         from {
             opacity: 0;
             transform: translateY(-4px) scale(0.97);
@@ -975,158 +1805,387 @@ import Base from "../layouts/base.astro";
         }
     }
 
-    .sm-item {
+    .gm-item {
         display: flex;
         align-items: center;
         gap: 10px;
         padding: 8px 10px;
-        border-radius: var(--md-shape-md);
+        border-radius: var(--md-shape-sm);
         cursor: pointer;
         font-size: 0.875rem;
         color: var(--md-sys-color-on-surface);
         transition: background var(--md-duration-short);
     }
 
-    .sm-item:hover {
+    .gm-item:hover {
         background: color-mix(
             in srgb,
             var(--md-sys-color-on-surface) 8%,
             transparent
         );
     }
-    .sm-item.active {
+    .gm-item.active {
         background: var(--md-sys-color-secondary-container);
         color: var(--md-sys-color-on-secondary-container);
     }
 
-    .sm-icon {
-        width: 28px;
-        height: 28px;
+    .gm-icon {
+        width: 24px;
+        height: 24px;
         border-radius: var(--md-shape-xs);
         object-fit: cover;
-        flex-shrink: 0;
     }
 
-    .sm-fallback {
-        width: 28px;
-        height: 28px;
+    .gm-fallback {
+        width: 24px;
+        height: 24px;
         border-radius: var(--md-shape-xs);
         background: var(--md-sys-color-primary-container);
         color: var(--md-sys-color-on-primary-container);
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 0.75rem;
+        font-size: 0.6875rem;
         font-weight: 600;
-        flex-shrink: 0;
     }
 
-    .user-chip {
+    .sidebar-nav {
+        flex: 1;
+        padding: 8px 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        overflow-y: auto;
+    }
+
+    .nav-group {
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+        margin-bottom: 8px;
+    }
+
+    .nav-group-label {
+        font-size: 0.6875rem;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--md-sys-color-on-surface-variant);
+        padding: 4px 12px 2px;
+        opacity: 0.7;
+    }
+
+    .nav-item {
         display: flex;
         align-items: center;
-        gap: 7px;
-        padding: 3px 10px 3px 3px;
-        border-radius: var(--md-shape-full);
-        background: var(--md-sys-color-surface-container);
+        gap: 10px;
+        padding: 8px 12px;
+        border: none;
+        border-radius: var(--md-shape-sm);
+        background: transparent;
+        color: var(--md-sys-color-on-surface-variant);
+        font-family: inherit;
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: pointer;
+        text-align: left;
+        transition:
+            background var(--md-duration-short),
+            color var(--md-duration-short);
     }
 
-    .user-avatar {
-        width: 28px;
-        height: 28px;
+    .nav-item:hover {
+        background: color-mix(
+            in srgb,
+            var(--md-sys-color-on-surface) 8%,
+            transparent
+        );
+        color: var(--md-sys-color-on-surface);
+    }
+
+    .nav-item.active {
+        background: var(--md-sys-color-secondary-container);
+        color: var(--md-sys-color-on-secondary-container);
+    }
+
+    .nav-item.active .icon {
+        font-variation-settings:
+            "FILL" 1,
+            "wght" 400,
+            "GRAD" 0,
+            "opsz" 20;
+    }
+
+    .sidebar-foot {
+        padding: 12px;
+        border-top: 1px solid var(--md-sys-color-outline-variant);
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .user-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 4px 6px;
+    }
+
+    .user-av {
         border-radius: 50%;
         object-fit: cover;
     }
 
-    .panel-header {
+    .user-nm {
+        font-size: 0.8125rem;
+        font-weight: 500;
+        color: var(--md-sys-color-on-surface);
+    }
+
+    .btn-ghost {
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        gap: 16px;
-        padding: 20px 24px 16px;
-        max-width: 780px;
-        margin: 0 auto;
-        width: 100%;
+        gap: 6px;
+        padding: 8px 12px;
+        background: transparent;
+        border: none;
+        border-radius: var(--md-shape-sm);
+        color: var(--md-sys-color-on-surface-variant);
+        font-family: inherit;
+        font-size: 0.8125rem;
+        cursor: pointer;
+        transition:
+            background var(--md-duration-short),
+            color var(--md-duration-short);
+    }
+
+    .btn-ghost:hover {
+        background: color-mix(
+            in srgb,
+            var(--md-sys-color-on-surface) 8%,
+            transparent
+        );
+        color: var(--md-sys-color-on-surface);
+    }
+
+    .mobile-bar {
+        display: none;
+        align-items: center;
+        gap: 12px;
+        padding: 0 16px;
+        height: 56px;
+        background: var(--md-sys-color-surface-container-low);
+        border-bottom: 1px solid var(--md-sys-color-outline-variant);
         position: sticky;
-        top: 60px;
+        top: 0;
         z-index: 10;
-        background: var(--md-sys-color-surface);
-        padding-bottom: 16px;
+        flex-shrink: 0;
     }
 
-    .panel-header::after {
-        content: "";
-        position: absolute;
-        bottom: 0;
-        left: 24px;
-        right: 24px;
-        height: 1px;
-        background: var(--md-sys-color-outline-variant);
+    .mobile-title {
+        font-size: 0.9375rem;
+        font-weight: 600;
+        color: var(--md-sys-color-on-surface);
+        text-transform: capitalize;
     }
 
-    .panel-title-wrap {
+    .icon-btn {
+        background: transparent;
+        border: none;
+        border-radius: var(--md-shape-full);
+        padding: 8px;
+        cursor: pointer;
+        color: var(--md-sys-color-on-surface);
+        display: flex;
+        align-items: center;
+    }
+
+    .icon-btn:hover {
+        background: color-mix(
+            in srgb,
+            var(--md-sys-color-on-surface) 8%,
+            transparent
+        );
+    }
+
+    .main {
+        flex: 1;
+        min-width: 0;
         display: flex;
         flex-direction: column;
-        gap: 2px;
     }
 
-    .panel-actions {
+    .view-wrap {
+        flex: 1;
+        overflow-y: auto;
+    }
+
+    .loading-full {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 300px;
+    }
+
+    .spinner {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        border: 3px solid var(--md-sys-color-surface-container-highest);
+        border-top-color: var(--md-sys-color-primary);
+        animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    .config-view,
+    .special-view {
+        max-width: 780px;
+        margin: 0 auto;
+        padding: 24px 24px 64px;
+    }
+
+    .view-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+
+    .view-title {
+        font-size: 1.375rem;
+        font-weight: 500;
+        color: var(--md-sys-color-on-surface);
+        margin-bottom: 4px;
+    }
+
+    .view-sub {
+        font-size: 0.8125rem;
+        color: var(--md-sys-color-on-surface-variant);
+    }
+
+    .view-actions {
         display: flex;
         gap: 10px;
         flex-shrink: 0;
     }
 
-    .content {
-        flex: 1;
-        overflow-y: auto;
-    }
-
-    .loading-state {
-        display: flex;
+    .btn-primary {
+        display: inline-flex;
         align-items: center;
-        justify-content: center;
-        min-height: 200px;
+        gap: 6px;
+        padding: 10px 20px;
+        background: var(--md-sys-color-primary);
+        color: var(--md-sys-color-on-primary);
+        border: none;
+        border-radius: var(--md-shape-full);
+        font-family: inherit;
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: opacity var(--md-duration-short);
+        position: relative;
+        overflow: hidden;
     }
 
-    .fields-wrap {
-        max-width: 780px;
-        margin: 0 auto;
-        padding: 20px 24px 48px;
+    .btn-primary:disabled {
+        opacity: 0.38;
+        cursor: not-allowed;
+    }
+    .btn-primary:not(:disabled):hover {
+        opacity: 0.92;
+    }
+
+    .btn-sm {
+        padding: 6px 14px;
+        font-size: 0.8125rem;
+    }
+
+    .btn-outlined {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 10px 20px;
+        background: transparent;
+        color: var(--md-sys-color-primary);
+        border: 1px solid var(--md-sys-color-outline);
+        border-radius: var(--md-shape-full);
+        font-family: inherit;
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background var(--md-duration-short);
+    }
+
+    .btn-outlined:disabled {
+        opacity: 0.38;
+        cursor: not-allowed;
+    }
+    .btn-outlined:not(:disabled):hover {
+        background: color-mix(
+            in srgb,
+            var(--md-sys-color-primary) 8%,
+            transparent
+        );
+    }
+
+    .btn-danger-sm {
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 8px;
+        background: transparent;
+        color: var(--md-sys-color-error);
+        border: 1px solid var(--md-sys-color-error);
+        border-radius: var(--md-shape-sm);
+        cursor: pointer;
+        font-family: inherit;
+        font-size: 0.8125rem;
+        transition: background var(--md-duration-short);
+    }
+
+    .btn-danger-sm:hover {
+        background: color-mix(
+            in srgb,
+            var(--md-sys-color-error) 10%,
+            transparent
+        );
+    }
+    .btn-danger-sm:disabled {
+        opacity: 0.38;
+        cursor: not-allowed;
+    }
+
+    .btn-ghost-sm {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 6px 12px;
+        background: transparent;
+        color: var(--md-sys-color-on-surface-variant);
+        border: 1px dashed var(--md-sys-color-outline-variant);
+        border-radius: var(--md-shape-full);
+        font-family: inherit;
+        font-size: 0.8125rem;
+        cursor: pointer;
+        transition:
+            border-color var(--md-duration-short),
+            color var(--md-duration-short);
+    }
+
+    .btn-ghost-sm:hover {
+        border-color: var(--md-sys-color-primary);
+        color: var(--md-sys-color-primary);
     }
 
     .fields {
         display: flex;
         flex-direction: column;
         gap: 8px;
-    }
-
-    .fields-enter {
-        animation: fields-in 0.18s var(--md-easing-standard) both;
-    }
-
-    .fields-exit {
-        animation: fields-out 0.12s var(--md-easing-standard) both;
-    }
-
-    @keyframes fields-in {
-        from {
-            opacity: 0;
-            transform: translateY(10px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-
-    @keyframes fields-out {
-        from {
-            opacity: 1;
-            transform: translateY(0);
-        }
-        to {
-            opacity: 0;
-            transform: translateY(-6px);
-        }
     }
 
     .field-row {
@@ -1136,23 +2195,163 @@ import Base from "../layouts/base.astro";
         display: flex;
         flex-direction: column;
         gap: 8px;
-        transition: background var(--md-duration-short);
         border-left: 3px solid transparent;
+        transition:
+            background var(--md-duration-short),
+            border-color var(--md-duration-short);
     }
 
     .field-row:hover {
         background: var(--md-sys-color-surface-container-high);
     }
-
     .field-row--dirty {
         border-left-color: var(--md-sys-color-primary);
     }
 
-    .field-row--toggle {
-        padding: 12px 20px;
+    .f-label {
+        font-size: 0.75rem;
+        font-weight: 500;
+        letter-spacing: 0.031em;
+        color: var(--md-sys-color-on-surface-variant);
     }
 
-    .switch-wrap {
+    .f-hint {
+        font-size: 0.75rem;
+        color: var(--md-sys-color-on-surface-variant);
+        opacity: 0.8;
+        line-height: 1.5;
+    }
+
+    .f-input-wrap {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        background: var(--md-sys-color-surface-container-high);
+        border: 1px solid var(--md-sys-color-outline-variant);
+        border-radius: var(--md-shape-sm);
+        padding: 10px 12px;
+        transition: border-color var(--md-duration-short);
+    }
+
+    .f-input-wrap:focus-within {
+        border-color: var(--md-sys-color-primary);
+        border-width: 2px;
+        padding: 9px 11px;
+    }
+
+    .f-input-wrap input,
+    .f-input-wrap textarea {
+        flex: 1;
+        background: transparent;
+        border: none;
+        outline: none;
+        font-family: inherit;
+        font-size: 0.9375rem;
+        color: var(--md-sys-color-on-surface);
+        caret-color: var(--md-sys-color-primary);
+        line-height: 1.5;
+        resize: vertical;
+        min-width: 0;
+    }
+
+    .f-input-wrap input::placeholder,
+    .f-input-wrap textarea::placeholder {
+        color: var(--md-sys-color-on-surface-variant);
+        opacity: 0.6;
+    }
+    .f-input-wrap textarea {
+        min-height: 72px;
+    }
+
+    .f-select {
+        width: 100%;
+        background: var(--md-sys-color-surface-container-high);
+        border: 1px solid var(--md-sys-color-outline-variant);
+        border-radius: var(--md-shape-sm);
+        padding: 10px 36px 10px 12px;
+        font-family: inherit;
+        font-size: 0.9375rem;
+        color: var(--md-sys-color-on-surface);
+        cursor: pointer;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24'%3E%3Cpath fill='%23938f99' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 10px center;
+        transition: border-color var(--md-duration-short);
+    }
+
+    .f-select:focus {
+        outline: none;
+        border-color: var(--md-sys-color-primary);
+        border-width: 2px;
+    }
+    .f-select option {
+        background: var(--md-sys-color-surface-container-high);
+    }
+
+    .f-text {
+        width: 100%;
+        background: var(--md-sys-color-surface-container-high);
+        border: 1px solid var(--md-sys-color-outline-variant);
+        border-radius: var(--md-shape-sm);
+        padding: 10px 12px;
+        font-family: inherit;
+        font-size: 0.9375rem;
+        color: var(--md-sys-color-on-surface);
+        transition: border-color var(--md-duration-short);
+    }
+
+    .f-text:focus {
+        outline: none;
+        border-color: var(--md-sys-color-primary);
+        border-width: 2px;
+    }
+    .f-text::placeholder {
+        color: var(--md-sys-color-on-surface-variant);
+        opacity: 0.6;
+    }
+
+    .f-textarea {
+        width: 100%;
+        background: var(--md-sys-color-surface-container-high);
+        border: 1px solid var(--md-sys-color-outline-variant);
+        border-radius: var(--md-shape-sm);
+        padding: 10px 12px;
+        font-family: inherit;
+        font-size: 0.9375rem;
+        color: var(--md-sys-color-on-surface);
+        resize: vertical;
+        line-height: 1.5;
+        transition: border-color var(--md-duration-short);
+    }
+
+    .f-textarea:focus {
+        outline: none;
+        border-color: var(--md-sys-color-primary);
+        border-width: 2px;
+    }
+    .f-textarea::placeholder {
+        color: var(--md-sys-color-on-surface-variant);
+        opacity: 0.6;
+    }
+
+    .clear-btn {
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        color: var(--md-sys-color-on-surface-variant);
+        padding: 0;
+        display: flex;
+        align-items: center;
+        opacity: 0.7;
+        flex-shrink: 0;
+    }
+
+    .clear-btn:hover {
+        opacity: 1;
+    }
+
+    .toggle-wrap {
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -1160,7 +2359,7 @@ import Base from "../layouts/base.astro";
         cursor: pointer;
     }
 
-    .switch-labels {
+    .toggle-labels {
         display: flex;
         flex-direction: column;
         gap: 2px;
@@ -1217,110 +2416,119 @@ import Base from "../layouts/base.astro";
         background: var(--md-sys-color-on-primary);
     }
 
-    .field-label {
-        font-size: 0.75rem;
-        font-weight: 500;
-        letter-spacing: 0.031em;
-        color: var(--md-sys-color-on-surface-variant);
+    .switch-sm .switch-track {
+        width: 40px;
+        height: 24px;
+    }
+    .switch-sm .switch-thumb {
+        width: 12px;
+        height: 12px;
+    }
+    .switch-sm input:checked + .switch-track .switch-thumb {
+        transform: translateX(16px);
+        width: 18px;
+        height: 18px;
     }
 
-    .field {
+    .role-select {
+        position: relative;
+        cursor: pointer;
+    }
+
+    .role-select-display {
         display: flex;
-        align-items: flex-start;
+        align-items: center;
         gap: 8px;
         background: var(--md-sys-color-surface-container-high);
         border: 1px solid var(--md-sys-color-outline-variant);
         border-radius: var(--md-shape-sm);
         padding: 10px 12px;
+        min-height: 44px;
+        user-select: none;
         transition: border-color var(--md-duration-short);
     }
 
-    .field:focus-within {
-        border-color: var(--md-sys-color-primary);
-        border-width: 2px;
-        padding: 9px 11px;
+    .role-select-display:hover {
+        border-color: var(--md-sys-color-outline);
     }
 
-    .field input,
-    .field textarea {
+    .role-placeholder {
+        color: var(--md-sys-color-on-surface-variant);
+        opacity: 0.6;
+        flex: 1;
+    }
+
+    .role-dropdown {
+        position: absolute;
+        top: calc(100% + 4px);
+        left: 0;
+        right: 0;
+        background: var(--md-sys-color-surface-container-high);
+        border: 1px solid var(--md-sys-color-outline-variant);
+        border-radius: var(--md-shape-lg);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+        z-index: 40;
+        animation: pop-in 0.12s var(--md-easing-standard);
+        overflow: hidden;
+    }
+
+    .role-search-wrap {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border-bottom: 1px solid var(--md-sys-color-outline-variant);
+    }
+
+    .role-search {
         flex: 1;
         background: transparent;
         border: none;
         outline: none;
         font-family: inherit;
-        font-size: 0.9375rem;
+        font-size: 0.875rem;
         color: var(--md-sys-color-on-surface);
-        caret-color: var(--md-sys-color-primary);
-        line-height: 1.5;
-        resize: vertical;
-        min-width: 0;
     }
 
-    .field input::placeholder,
-    .field textarea::placeholder {
-        color: var(--md-sys-color-on-surface-variant);
-        opacity: 0.6;
+    .role-options {
+        max-height: 220px;
+        overflow-y: auto;
+        padding: 6px;
     }
 
-    .field textarea {
-        min-height: 72px;
-    }
-
-    .field-hint {
-        font-size: 0.75rem;
-        color: var(--md-sys-color-on-surface-variant);
-        opacity: 0.8;
-        line-height: 1.4;
-    }
-
-    .clear-btn {
-        background: transparent;
-        border: none;
-        cursor: pointer;
-        color: var(--md-sys-color-on-surface-variant);
-        padding: 0;
+    .role-opt {
         display: flex;
         align-items: center;
-        opacity: 0.7;
-        flex-shrink: 0;
-    }
-
-    .clear-btn:hover {
-        opacity: 1;
-    }
-
-    .md-select {
-        width: 100%;
-        background: var(--md-sys-color-surface-container-high);
-        border: 1px solid var(--md-sys-color-outline-variant);
+        gap: 8px;
+        padding: 8px 10px;
         border-radius: var(--md-shape-sm);
-        padding: 10px 36px 10px 12px;
-        font-family: inherit;
-        font-size: 0.9375rem;
-        color: var(--md-sys-color-on-surface);
         cursor: pointer;
-        appearance: none;
-        -webkit-appearance: none;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24'%3E%3Cpath fill='%23938f99' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
-        background-repeat: no-repeat;
-        background-position: right 10px center;
-        transition: border-color var(--md-duration-short);
+        font-size: 0.875rem;
+        color: var(--md-sys-color-on-surface);
+        transition: background var(--md-duration-short);
     }
 
-    .md-select:focus {
-        outline: none;
-        border-color: var(--md-sys-color-primary);
-        border-width: 2px;
-        padding: 9px 35px 9px 11px;
+    .role-opt:hover {
+        background: color-mix(
+            in srgb,
+            var(--md-sys-color-on-surface) 8%,
+            transparent
+        );
+    }
+    .role-opt--active {
+        background: color-mix(
+            in srgb,
+            var(--md-sys-color-primary) 14%,
+            transparent
+        );
+        color: var(--md-sys-color-primary);
     }
 
-    .md-select option {
-        background: var(--md-sys-color-surface-container-high);
-    }
-    .md-select optgroup {
-        font-size: 0.75rem;
-        font-weight: 600;
-        color: var(--md-sys-color-on-surface-variant);
+    .role-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        flex-shrink: 0;
     }
 
     .multi-select {
@@ -1335,10 +2543,6 @@ import Base from "../layouts/base.astro";
         gap: 6px;
         align-items: center;
         transition: border-color var(--md-duration-short);
-    }
-
-    .multi-select:focus-within {
-        border-color: var(--md-sys-color-primary);
     }
 
     .ms-tags {
@@ -1357,11 +2561,9 @@ import Base from "../layouts/base.astro";
         border-radius: var(--md-shape-full);
         font-size: 0.8125rem;
         font-weight: 500;
-        color: var(--md-sys-color-on-surface);
-        white-space: nowrap;
     }
 
-    .ms-remove {
+    .ms-rm {
         background: transparent;
         border: none;
         cursor: pointer;
@@ -1373,7 +2575,7 @@ import Base from "../layouts/base.astro";
         transition: background var(--md-duration-short);
     }
 
-    .ms-remove:hover {
+    .ms-rm:hover {
         background: color-mix(
             in srgb,
             var(--md-sys-color-on-surface) 12%,
@@ -1381,7 +2583,7 @@ import Base from "../layouts/base.astro";
         );
     }
 
-    .ms-add-btn {
+    .ms-add {
         display: inline-flex;
         align-items: center;
         gap: 4px;
@@ -1398,28 +2600,28 @@ import Base from "../layouts/base.astro";
             color var(--md-duration-short);
     }
 
-    .ms-add-btn:hover {
+    .ms-add:hover {
         border-color: var(--md-sys-color-primary);
         color: var(--md-sys-color-primary);
     }
 
-    .ms-dropdown {
+    .ms-drop {
         position: absolute;
-        top: calc(100% + 6px);
+        top: calc(100% + 4px);
         left: 0;
         right: 0;
         background: var(--md-sys-color-surface-container-high);
         border: 1px solid var(--md-sys-color-outline-variant);
         border-radius: var(--md-shape-lg);
-        max-height: 240px;
+        max-height: 220px;
         overflow-y: auto;
         padding: 6px;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
-        z-index: 50;
-        animation: menu-in 0.12s var(--md-easing-standard);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+        z-index: 40;
+        animation: pop-in 0.12s var(--md-easing-standard);
     }
 
-    .ms-option {
+    .ms-opt {
         display: flex;
         align-items: center;
         gap: 8px;
@@ -1427,19 +2629,18 @@ import Base from "../layouts/base.astro";
         border-radius: var(--md-shape-sm);
         cursor: pointer;
         font-size: 0.875rem;
-        color: var(--md-sys-color-on-surface);
-        transition: background var(--md-duration-short);
         justify-content: space-between;
+        transition: background var(--md-duration-short);
     }
 
-    .ms-option:hover {
+    .ms-opt:hover {
         background: color-mix(
             in srgb,
             var(--md-sys-color-on-surface) 8%,
             transparent
         );
     }
-    .ms-option--selected {
+    .ms-opt--sel {
         background: color-mix(
             in srgb,
             var(--md-sys-color-primary) 12%,
@@ -1454,58 +2655,284 @@ import Base from "../layouts/base.astro";
         color: var(--md-sys-color-on-surface-variant);
     }
 
-    .role-dot {
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
+    .tab-bar {
+        display: flex;
+        gap: 4px;
+        border-bottom: 1px solid var(--md-sys-color-outline-variant);
+        margin-bottom: 20px;
+    }
+
+    .tab {
+        padding: 10px 20px;
+        background: transparent;
+        border: none;
+        border-bottom: 2px solid transparent;
+        font-family: inherit;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--md-sys-color-on-surface-variant);
+        cursor: pointer;
+        transition:
+            color var(--md-duration-short),
+            border-color var(--md-duration-short);
+    }
+
+    .tab:hover {
+        color: var(--md-sys-color-on-surface);
+    }
+    .tab.active {
+        color: var(--md-sys-color-primary);
+        border-bottom-color: var(--md-sys-color-primary);
+    }
+
+    .alert-row {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 14px 16px;
+        background: var(--md-sys-color-surface-container);
+        border-radius: var(--md-shape-md);
+        margin-bottom: 8px;
+    }
+
+    .alert-info {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+    .alert-name {
+        font-weight: 600;
+        font-size: 0.9375rem;
+    }
+    .alert-ch {
+        font-size: 0.8125rem;
+        color: var(--md-sys-color-on-surface-variant);
+    }
+    .alert-msg {
+        font-size: 0.8125rem;
+        color: var(--md-sys-color-on-surface-variant);
+        font-style: italic;
+    }
+
+    .add-form {
+        background: var(--md-sys-color-surface-container);
+        border-radius: var(--md-shape-lg);
+        padding: 20px;
+        margin-top: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .form-title {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--md-sys-color-on-surface-variant);
+    }
+
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+
+    .split-layout {
+        display: grid;
+        grid-template-columns: 240px 1fr;
+        gap: 16px;
+        min-height: 400px;
+    }
+
+    .split-list {
+        background: var(--md-sys-color-surface-container);
+        border-radius: var(--md-shape-lg);
+        padding: 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        overflow-y: auto;
+        max-height: 70vh;
+    }
+
+    .split-editor {
+        background: var(--md-sys-color-surface-container);
+        border-radius: var(--md-shape-lg);
+        padding: 20px;
+        overflow-y: auto;
+        max-height: 70vh;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .editor-empty {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--md-sys-color-on-surface-variant);
+        font-size: 0.875rem;
+        opacity: 0.6;
+    }
+
+    .list-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 12px;
+        background: transparent;
+        border: none;
+        border-radius: var(--md-shape-sm);
+        cursor: pointer;
+        font-family: inherit;
+        font-size: 0.875rem;
+        color: var(--md-sys-color-on-surface-variant);
+        text-align: left;
+        transition:
+            background var(--md-duration-short),
+            color var(--md-duration-short);
+        width: 100%;
+    }
+
+    .list-item:hover {
+        background: color-mix(
+            in srgb,
+            var(--md-sys-color-on-surface) 8%,
+            transparent
+        );
+        color: var(--md-sys-color-on-surface);
+    }
+    .list-item.active {
+        background: var(--md-sys-color-secondary-container);
+        color: var(--md-sys-color-on-secondary-container);
+    }
+
+    .li-name {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .li-meta {
+        font-size: 0.6875rem;
+        opacity: 0.6;
+    }
+
+    .editor-header {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 12px;
+    }
+
+    .editor-name-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        flex: 1;
+    }
+    .editor-acts {
+        display: flex;
+        gap: 8px;
         flex-shrink: 0;
     }
 
-    .spinner {
+    .accent-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .color-input {
         width: 36px;
-        height: 36px;
-        border-radius: 50%;
-        border: 3px solid var(--md-sys-color-surface-container-highest);
-        border-top-color: var(--md-sys-color-primary);
-        animation: spin 0.8s linear infinite;
+        height: 28px;
+        border: 1px solid var(--md-sys-color-outline-variant);
+        border-radius: var(--md-shape-xs);
+        cursor: pointer;
+        padding: 2px;
+        background: transparent;
     }
 
-    @keyframes spin {
-        to {
-            transform: rotate(360deg);
-        }
+    .cont-items {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        min-height: 40px;
     }
 
-    @media (max-width: 700px) {
-        .topnav {
-            padding: 0 12px;
+    .cont-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        background: var(--md-sys-color-surface-container-high);
+        border-radius: var(--md-shape-sm);
+    }
+
+    .cont-item-preview {
+        flex: 1;
+        font-size: 0.8125rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .cont-add-btns {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .cont-inline-form {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 12px;
+        background: var(--md-sys-color-surface-container-high);
+        border-radius: var(--md-shape-md);
+    }
+
+    .empty-msg {
+        padding: 16px 12px;
+        color: var(--md-sys-color-on-surface-variant);
+        font-size: 0.875rem;
+        opacity: 0.7;
+    }
+
+    @media (max-width: 768px) {
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            z-index: 40;
+            transform: translateX(-100%);
+            transition: transform var(--md-duration-long)
+                var(--md-easing-standard);
         }
-        .nav-brand .brand-name {
-            display: none;
+
+        .sidebar.open {
+            transform: translateX(0);
         }
-        .cat-tab {
-            padding: 6px 10px;
-            font-size: 0.75rem;
+
+        .mobile-bar {
+            display: flex;
         }
-        .cat-tab .icon {
-            display: none;
+
+        .config-view,
+        .special-view {
+            padding: 16px 16px 64px;
         }
-        .fields-wrap {
-            padding: 16px 12px 40px;
+
+        .split-layout {
+            grid-template-columns: 1fr;
         }
-        .panel-header {
-            padding: 16px 12px 14px;
-            top: 60px;
+        .split-list {
+            max-height: 200px;
         }
-        .panel-header::after {
-            left: 12px;
-            right: 12px;
-        }
-        .user-chip .md-label-md {
-            display: none;
-        }
-        .btn.btn-text span.icon {
-            margin-right: 0;
+        .form-row {
+            grid-template-columns: 1fr;
         }
     }
 </style>

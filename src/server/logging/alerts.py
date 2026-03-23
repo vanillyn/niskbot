@@ -11,11 +11,9 @@ from discord import app_commands, ui
 from discord.ext import commands
 
 from src.data.config import GuildConfig
-from src.data.economy import (
+from src.data.util import (
     delete_streamer_alert,
-    get_stream_cache,
     get_streamer_alerts,
-    set_stream_cache,
     upsert_streamer_alert,
 )
 from src.member.util import _is_admin

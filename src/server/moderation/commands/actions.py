@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import random
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 from typing import TYPE_CHECKING
 
 import discord
