@@ -1,4 +1,14 @@
-const BASE = import.meta.env.PUBLIC_API_URL;
+export function getApiBase(): string {
+  if (typeof localStorage !== "undefined") {
+    const stored = localStorage.getItem("api_base_url");
+    if (stored) return stored.replace(/\/\$/, "");
+  }
+  return (import.meta.env.PUBLIC_API_URL ?? "").replace(/\/\$/, "");
+}
+
+export function setApiBase(url: string): void {
+  localStorage.setItem("api_base_url", url.replace(/\/\$/, ""));
+}
 
 export interface Guild {
   id: string;
@@ -58,7 +68,7 @@ function authHeaders(): HeadersInit {
 }
 
 async function req<T>(path: string, options?: RequestInit): Promise<T> {
-  const resp = await fetch(`${BASE}${path}`, {
+  const resp = await fetch(`${getApiBase()}${path}`, {
     ...options,
     headers: { ...authHeaders(), ...(options?.headers ?? {}) },
   });

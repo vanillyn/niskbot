@@ -41,12 +41,44 @@ import Base from "../layouts/base.astro";
                     />
                     <span class="user-nm" id="user-nm"></span>
                 </div>
+                <button class="btn-ghost" id="api-url-btn">
+                    <span class="icon icon-sm">cable</span>
+                    api url
+                </button>
                 <button class="btn-ghost" id="logout-btn" hidden>
                     <span class="icon icon-sm">logout</span>
                     sign out
                 </button>
             </div>
         </aside>
+
+        <div class="modal-backdrop" id="api-modal" hidden>
+            <div class="modal">
+                <h2 class="modal-title">api connection</h2>
+                <p class="modal-desc">
+                    set the url of your bot's api server. this is saved in your
+                    browser so you don't need to rebuild the site.
+                </p>
+                <label class="f-label" for="api-url-input">api url</label>
+                <input
+                    class="f-text"
+                    id="api-url-input"
+                    placeholder="https://your-ngrok-url.ngrok.io"
+                />
+                <p class="f-hint">
+                    expose port 8080 with ngrok: <code>ngrok http 8080</code><br
+                    />or set the <code>PUBLIC_API_URL</code> env var at build time
+                </p>
+                <div class="modal-actions">
+                    <button class="btn-outlined" id="api-modal-cancel"
+                        >cancel</button
+                    >
+                    <button class="btn-primary" id="api-modal-save">
+                        <span class="icon icon-sm">save</span> save &amp; reload
+                    </button>
+                </div>
+            </div>
+        </div>
 
         <div class="main">
             <div class="mobile-bar" id="mobile-bar">
@@ -172,6 +204,8 @@ import Base from "../layouts/base.astro";
         getYoutubeAlerts,
         addYoutubeAlert,
         removeYoutubeAlert,
+        getApiBase,
+        setApiBase,
         type Guild,
         type Channel,
         type Role,
@@ -1675,10 +1709,34 @@ import Base from "../layouts/base.astro";
             });
     });
 
+    el("api-url-btn").addEventListener("click", () => {
+        (document.getElementById("api-url-input") as HTMLInputElement).value =
+            getApiBase();
+        el("api-modal").hidden = false;
+    });
+
+    el("api-modal-cancel").addEventListener("click", () => {
+        el("api-modal").hidden = true;
+    });
+
+    el("api-modal-save").addEventListener("click", () => {
+        const url = (
+            document.getElementById("api-url-input") as HTMLInputElement
+        ).value.trim();
+        if (url) {
+            setApiBase(url);
+            window.location.reload();
+        }
+    });
+
+    el("api-modal").addEventListener("click", (e) => {
+        if (e.target === el("api-modal")) el("api-modal").hidden = true;
+    });
+
     void init();
 </script>
 
-<style>
+<style is:global>
     .shell {
         display: flex;
         min-height: 100svh;
