@@ -347,6 +347,10 @@ html {
     background: var(--md-sys-color-on-primary);
     opacity: 0;
     transition: opacity var(--md-duration-short);
+    /* ensure the pseudo-element never captures pointer events and
+       doesn't accidentally block other page elements if the button
+       isn't using the shared .btn base class */
+    pointer-events: none;
 }
 
 .btn-filled:hover::after {
@@ -372,6 +376,8 @@ html {
     background: var(--md-sys-color-on-secondary-container);
     opacity: 0;
     transition: opacity var(--md-duration-short);
+    /* don't intercept clicks if button markup omits the shared .btn class */
+    pointer-events: none;
 }
 
 .btn-filled-tonal:hover::after {
@@ -385,6 +391,12 @@ html {
     background: transparent;
     color: var(--md-sys-color-primary);
     border: 1px solid var(--md-sys-color-outline);
+    /* In some templates buttons are rendered with only a variant
+       class (e.g. `class="btn-outlined"`) without the shared `.btn`
+       base class. Ensure these variants are positioned properly so
+       their ::after overlays are correctly contained. */
+    position: relative;
+    overflow: hidden;
 }
 
 .btn-outlined::after {
@@ -394,6 +406,8 @@ html {
     background: var(--md-sys-color-primary);
     opacity: 0;
     transition: opacity var(--md-duration-short);
+    /* ensure the overlay doesn't steal pointer events from the page */
+    pointer-events: none;
 }
 
 .btn-outlined:hover::after {
@@ -407,6 +421,9 @@ html {
     background: transparent;
     color: var(--md-sys-color-primary);
     padding: 10px 12px;
+    /* same reason as other variants: keep pseudo overlay confined */
+    position: relative;
+    overflow: hidden;
 }
 
 .btn-text::after {
@@ -416,6 +433,7 @@ html {
     background: var(--md-sys-color-primary);
     opacity: 0;
     transition: opacity var(--md-duration-short);
+    pointer-events: none;
 }
 
 .btn-text:hover::after {
@@ -448,6 +466,7 @@ html {
     background: currentColor;
     opacity: 0;
     transition: opacity var(--md-duration-short);
+    pointer-events: none;
 }
 
 .btn-icon:hover::after {

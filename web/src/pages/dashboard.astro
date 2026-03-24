@@ -1030,8 +1030,14 @@ import Base from "../layouts/base.astro";
 
     function updateSaveState(): void {
         const has = Object.keys(pendingChanges).length > 0;
-        el<HTMLButtonElement>("save-btn").disabled = !has;
-        el<HTMLButtonElement>("discard-btn").disabled = !has;
+        const saveBtn = document.getElementById(
+            "save-btn",
+        ) as HTMLButtonElement | null;
+        const discardBtn = document.getElementById(
+            "discard-btn",
+        ) as HTMLButtonElement | null;
+        if (saveBtn) saveBtn.disabled = !has;
+        if (discardBtn) discardBtn.disabled = !has;
     }
 
     async function saveChanges(): Promise<void> {
