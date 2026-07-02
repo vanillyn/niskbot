@@ -135,17 +135,18 @@ class Database:
                 PRIMARY KEY (guild_id, name)
             );
             CREATE TABLE IF NOT EXISTS suggestions (
-                id          INTEGER PRIMARY KEY AUTOINCREMENT,
-                guild_id    INTEGER NOT NULL,
-                channel_id  INTEGER NOT NULL,
-                message_id  INTEGER,
-                author_id   INTEGER NOT NULL,
-                title       TEXT    NOT NULL,
-                details     TEXT    NOT NULL,
-                votes_up    INTEGER NOT NULL DEFAULT 0,
-                votes_down  INTEGER NOT NULL DEFAULT 0,
-                status      TEXT    NOT NULL DEFAULT 'open',
-                created_at  INTEGER NOT NULL
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                guild_id        INTEGER NOT NULL,
+                channel_id      INTEGER NOT NULL,
+                message_id      INTEGER,
+                author_id       INTEGER NOT NULL,
+                title           TEXT    NOT NULL,
+                details         TEXT    NOT NULL,
+                votes_up        INTEGER NOT NULL DEFAULT 0,
+                votes_down      INTEGER NOT NULL DEFAULT 0,
+                status          TEXT    NOT NULL DEFAULT 'open',
+                created_at      INTEGER NOT NULL,
+                suggestion_type TEXT    NOT NULL DEFAULT ''
             );
             CREATE TABLE IF NOT EXISTS suggestion_votes (
                 suggestion_id INTEGER NOT NULL,
@@ -153,14 +154,46 @@ class Database:
                 vote          TEXT    NOT NULL,
                 PRIMARY KEY (suggestion_id, user_id)
             );
+            CREATE TABLE IF NOT EXISTS suggestion_channels (
+                guild_id   INTEGER NOT NULL,
+                name       TEXT    NOT NULL,
+                channel_id INTEGER NOT NULL,
+                PRIMARY KEY (guild_id, name)
+            );
             CREATE TABLE IF NOT EXISTS starboard_entries (
                 guild_id             INTEGER NOT NULL,
                 source_message_id    INTEGER NOT NULL,
                 starboard_message_id INTEGER NOT NULL,
                 PRIMARY KEY (guild_id, source_message_id)
             );
+            CREATE TABLE IF NOT EXISTS member_name_history (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                guild_id     INTEGER NOT NULL,
+                user_id      INTEGER NOT NULL,
+                username     TEXT    NOT NULL,
+                display_name TEXT    NOT NULL,
+                recorded_at  INTEGER NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS member_last_message (
+                guild_id    INTEGER NOT NULL,
+                user_id     INTEGER NOT NULL,
+                channel_id  INTEGER NOT NULL,
+                message_id  INTEGER NOT NULL,
+                recorded_at INTEGER NOT NULL,
+                PRIMARY KEY (guild_id, user_id)
+            );
         """)
         await self.conn.commit()
+
+    async def migrate(self) -> None:
+        for stmt in (
+            "alter table suggestions add column suggestion_type text not null default ''",
+        ):
+            try:
+                await self.conn.execute(stmt)
+                await self.conn.commit()
+            except Exception:
+                pass
 
     async def execute(
         self,

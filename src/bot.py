@@ -17,6 +17,7 @@ extensions: list[str] = [
     "src.misc.config",
     "src.misc.echo",
     "src.server.moderation.commands.actions",
+    "src.server.moderation.commands.info",
     "src.server.resources",
     "src.server.containers",
     "src.server.logging.alerts",
@@ -25,6 +26,7 @@ extensions: list[str] = [
     "src.server.suggestions",
     "src.server.starboard",
     "src.member.cookies",
+    "src.member.statistics.commands",
 ]
 
 _WEBHOOK_PORT = int(os.environ.get("WEBHOOK_PORT", "3000"))
@@ -52,6 +54,7 @@ class Bot(commands.Bot):
 
         await self.db.connect()
         await self.db.create_tables()
+        await self.db.migrate()
         self.add_dynamic_items(ResourceButton, SuggestionButton)
 
         for ext in extensions:

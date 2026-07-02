@@ -15,7 +15,14 @@ _proc: subprocess.Popen[bytes] | None = None
 async def start(port: int) -> str:
     global _proc
     _proc = subprocess.Popen(
-        ["ngrok", "http", str(port), "--log=stdout", "--log-format=json"],
+        [
+            "ngrok",
+            "http",
+            str(port),
+            "--log=stdout",
+            "--log-format=json",
+            "--pooling-enabled",
+        ],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )

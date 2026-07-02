@@ -8,12 +8,14 @@ from typing import TYPE_CHECKING
 
 import discord
 from discord import app_commands, ui
-from discord.ext import commands
+from discord.ext import commands, tasks
 
 from src.data.config import GuildConfig
 from src.data.util import (
     delete_streamer_alert,
+    get_stream_cache,
     get_streamer_alerts,
+    set_stream_cache,
     upsert_streamer_alert,
 )
 from src.member.util import _is_admin
@@ -49,12 +51,61 @@ def _twitch_callback_url() -> str:
     return f"{_CALLBACK_URL}/webhook/twitch"
 
 
-def _resolve_youtube(template: str, streamer: str, data: dict[str, object]) -> str:
-    return (
-        template.replace("{channel}", str(data.get("channel_title", streamer)))
-        .replace("{title}", str(data.get("title", "")))
-        .replace("{url}", str(data.get("url", "")))
+async def _render_resource_alert(
+    bot: "Bot",
+    guild: discord.Guild,
+    resource_name: str,
+    substitutions: dict[str, str],
+    member: discord.Member | None = None,
+    channel: discord.TextChannel | None = None,
+) -> BaseLayout | None:
+    row = await bot.db.fetchone(
+        "select content from resources where guild_id = ? and name = ?",
+        (guild.id, resource_name),
     )
+    if row is None:
+        return None
+    content = str(row[0])
+    for k, v in substitutions.items():
+        content = content.replace(k, v)
+    if member is None:
+        if bot.user is None:
+            return None
+        member = guild.get_member(bot.user.id)
+        if member is None:
+            return None
+    from src.server.resources import render_resource
+
+    layout, _ = await render_resource(bot.db, guild.id, content, guild, member, channel)
+    return layout
+
+
+async def _send_member_alert(
+    bot: "Bot",
+    guild: discord.Guild,
+    member: discord.Member,
+    channel: discord.TextChannel,
+    template: str,
+    accent: int,
+) -> None:
+    if template.startswith("resource:"):
+        resource_name = template[9:].strip()
+        layout = await _render_resource_alert(
+            bot, guild, resource_name, {}, member, channel
+        )
+        if layout is not None:
+            try:
+                await channel.send(view=layout)
+            except discord.HTTPException as e:
+                log.error("member alert resource send failed in %s: %s", guild.id, e)
+            return
+    text = resolve_text(template, guild, member, channel)
+    plain_layout = BaseLayout()
+    plain_layout.add_container(ui.TextDisplay(text), accent_color=accent)
+    try:
+        await channel.send(view=plain_layout)
+    except discord.HTTPException as e:
+        log.error("member alert send failed in %s: %s", guild.id, e)
 
 
 async def _handle_stream_online(bot: "Bot", broadcaster_id: str) -> None:
@@ -84,6 +135,14 @@ async def _handle_stream_online(bot: "Bot", broadcaster_id: str) -> None:
         )
         relative_ts = f"<t:{int(started.timestamp())}:R>"
 
+    subs: dict[str, str] = {
+        "{streamer}": display_name,
+        "{title}": stream_title,
+        "{game}": game,
+        "{url}": stream_url,
+        "{followers}": f"{followers:,}",
+    }
+
     for guild in bot.guilds:
         entries = await get_streamer_alerts(bot.db, guild.id, "twitch")
         for streamer_login, channel_id, message in entries:
@@ -95,15 +154,28 @@ async def _handle_stream_online(bot: "Bot", broadcaster_id: str) -> None:
             if not isinstance(channel, discord.TextChannel):
                 continue
 
+            if message is not None and message.startswith("resource:"):
+                resource_name = message[9:].strip()
+                layout = await _render_resource_alert(
+                    bot, guild, resource_name, subs, None, channel
+                )
+                if layout is not None:
+                    try:
+                        await channel.send(view=layout)
+                        log.info(
+                            "sent resource twitch alert for %s in guild %s",
+                            display_name,
+                            guild.id,
+                        )
+                    except discord.HTTPException as e:
+                        log.error("twitch resource alert failed: %s", e)
+                    continue
+
             cfg = await GuildConfig.load(bot.db, guild.id)
             template = message or f"{display_name} is live!"
-            text = (
-                template.replace("{streamer}", display_name)
-                .replace("{title}", stream_title)
-                .replace("{game}", game)
-                .replace("{url}", stream_url)
-                .replace("{followers}", f"{followers:,}")
-            )
+            text = template
+            for k, v in subs.items():
+                text = text.replace(k, v)
 
             container = discord.ui.Container(
                 discord.ui.Section(
@@ -127,14 +199,59 @@ async def _handle_stream_online(bot: "Bot", broadcaster_id: str) -> None:
                 ),
                 accent_color=discord.Color(0x9146FF),
             )
-            layout = BaseLayout()
-            layout.add_item(container)
-
+            fallback = BaseLayout()
+            fallback.add_item(container)
             try:
-                await channel.send(view=layout)
+                await channel.send(view=fallback)
                 log.info("sent live alert for %s in guild %s", display_name, guild.id)
             except discord.HTTPException as e:
                 log.error("failed to send live alert: %s", e)
+            _ = cfg
+
+
+async def _send_youtube_alert(
+    bot: "Bot",
+    guild: discord.Guild,
+    channel: discord.TextChannel,
+    yt_channel_id: str,
+    stream: dict[str, object],
+    message: str | None,
+) -> None:
+    channel_title = str(stream.get("channel_title", yt_channel_id))
+    title = str(stream.get("title", ""))
+    url = str(stream.get("url", ""))
+
+    subs: dict[str, str] = {
+        "{channel}": channel_title,
+        "{title}": title,
+        "{url}": url,
+    }
+
+    if message is not None and message.startswith("resource:"):
+        resource_name = message[9:].strip()
+        layout = await _render_resource_alert(
+            bot, guild, resource_name, subs, None, channel
+        )
+        if layout is not None:
+            try:
+                await channel.send(view=layout)
+            except discord.HTTPException as e:
+                log.error("youtube resource alert failed in guild %s: %s", guild.id, e)
+            return
+
+    text = message or f"{channel_title} is live on youtube!"
+    for k, v in subs.items():
+        text = text.replace(k, v)
+
+    layout = BaseLayout()
+    layout.add_container(
+        ui.TextDisplay(f"**{text}**\n[{title}]({url})"),
+        accent_color=0xFF0000,
+    )
+    try:
+        await channel.send(view=layout)
+    except discord.HTTPException as e:
+        log.error("youtube alert failed in guild %s: %s", guild.id, e)
 
 
 async def _ensure_subscription(broadcaster_id: str) -> str | None:
@@ -177,8 +294,11 @@ class AlertsCog(commands.Cog, name="alerts"):
 
     async def cog_load(self) -> None:
         await self._sync_eventsub()
+        if self._youtube is not None:
+            self._check_youtube.start()
 
     async def cog_unload(self) -> None:
+        self._check_youtube.cancel()
         if self._youtube is not None:
             await self._youtube.close()
 
@@ -202,6 +322,40 @@ class AlertsCog(commands.Cog, name="alerts"):
                 _webhook.register(broadcaster_id, callback)
                 log.info("eventsub active for %s", broadcaster_id)
 
+    @tasks.loop(seconds=_YOUTUBE_INTERVAL)
+    async def _check_youtube(self) -> None:
+        if self._youtube is None:
+            return
+        now = int(time.time())
+        for guild in self.bot.guilds:
+            entries = await get_streamer_alerts(self.bot.db, guild.id, "youtube")
+            for yt_id, discord_channel_id, message in entries:
+                try:
+                    stream = await self._youtube.get_live_stream(yt_id)
+                except Exception as e:
+                    log.error("youtube api error for %s: %s", yt_id, e)
+                    continue
+                is_live = stream is not None
+                was_live = await get_stream_cache(
+                    self.bot.db, guild.id, "youtube", yt_id
+                )
+                await set_stream_cache(
+                    self.bot.db, guild.id, "youtube", yt_id, is_live, now
+                )
+                if not is_live or was_live:
+                    continue
+                channel = guild.get_channel(discord_channel_id)
+                if not isinstance(channel, discord.TextChannel):
+                    continue
+                assert stream is not None
+                await _send_youtube_alert(
+                    self.bot, guild, channel, yt_id, stream, message
+                )
+
+    @_check_youtube.before_loop
+    async def _before_youtube(self) -> None:
+        await self.bot.wait_until_ready()
+
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member) -> None:
         guild = member.guild
@@ -217,13 +371,7 @@ class AlertsCog(commands.Cog, name="alerts"):
         template = cfg.log.alerts_joins_message
         if not template:
             return
-        text = resolve_text(template, guild, member, channel)
-        layout = BaseLayout()
-        layout.add_container(ui.TextDisplay(text), accent_color=0x57F287)
-        try:
-            await channel.send(view=layout)
-        except discord.HTTPException as e:
-            log.error("join alert failed in guild %s: %s", guild.id, e)
+        await _send_member_alert(self.bot, guild, member, channel, template, 0x57F287)
 
     @commands.Cog.listener()
     async def on_member_remove(self, member: discord.Member) -> None:
@@ -240,13 +388,7 @@ class AlertsCog(commands.Cog, name="alerts"):
         template = cfg.log.alerts_leaves_message
         if not template:
             return
-        text = resolve_text(template, guild, member, channel)
-        layout = BaseLayout()
-        layout.add_container(ui.TextDisplay(text), accent_color=0xED4245)
-        try:
-            await channel.send(view=layout)
-        except discord.HTTPException as e:
-            log.error("leave alert failed in guild %s: %s", guild.id, e)
+        await _send_member_alert(self.bot, guild, member, channel, template, 0xED4245)
 
     alerts = app_commands.Group(name="alerts", description="manage streamer alerts")
 
@@ -254,7 +396,7 @@ class AlertsCog(commands.Cog, name="alerts"):
     @app_commands.describe(
         streamer="twitch username",
         channel="channel to post alerts in",
-        message="custom message ({streamer}, {title}, {game}, {url}, {followers})",
+        message="custom message or resource:name ({streamer}, {title}, {game}, {url}, {followers})",
     )
     async def twitch_add(
         self,
@@ -379,7 +521,7 @@ class AlertsCog(commands.Cog, name="alerts"):
     @app_commands.describe(
         channel_id="youtube channel id",
         channel="discord channel to post alerts in",
-        message="custom message ({channel}, {title}, {url})",
+        message="custom message or resource:name ({channel}, {title}, {url})",
     )
     async def youtube_add(
         self,

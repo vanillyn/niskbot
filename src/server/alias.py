@@ -9,6 +9,7 @@ from discord.ext import commands
 from src.data.config import GuildConfig
 from src.data.db import Database
 from src.server.permissions import has_permission
+from src.utils.placeholders import resolve_text
 
 if TYPE_CHECKING:
     from src.bot import Bot
@@ -70,6 +71,8 @@ class AliasCog(commands.Cog, name="alias"):
             return
         if not isinstance(message.channel, discord.TextChannel):
             return
+        if not isinstance(message.author, discord.Member):
+            return
         cfg = await GuildConfig.load(self.bot.db, message.guild.id)
         if not cfg.server.alias:
             return
@@ -83,7 +86,10 @@ class AliasCog(commands.Cog, name="alias"):
         response = await _get(self.bot.db, message.guild.id, name)
         if response is None:
             return
-        await message.channel.send(response)
+        resolved = resolve_text(
+            response, message.guild, message.author, message.channel
+        )
+        await message.channel.send(resolved)
 
     alias = app_commands.Group(name="alias", description="manage server aliases")
 

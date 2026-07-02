@@ -423,7 +423,7 @@ def make_app(bot: "Bot") -> web.Application:
             guild_id = int(guild_id_str)
         except ValueError:
             return web.json_response({"error": "bad guild id"}, status=400)
-        from src.data.economy import get_streamer_alerts
+        from src.data.util import get_streamer_alerts
 
         entries = await get_streamer_alerts(bot.db, guild_id, "twitch")
         return web.json_response(
@@ -476,7 +476,7 @@ def make_app(bot: "Bot") -> web.Application:
         except ValueError:
             return web.json_response({"error": "bad guild id"}, status=400)
         streamer = request.match_info["streamer"]
-        from src.data.economy import delete_streamer_alert
+        from src.data.util import delete_streamer_alert
 
         await delete_streamer_alert(bot.db, guild_id, "twitch", streamer)
         return web.json_response({"ok": True})
@@ -494,7 +494,7 @@ def make_app(bot: "Bot") -> web.Application:
             guild_id = int(guild_id_str)
         except ValueError:
             return web.json_response({"error": "bad guild id"}, status=400)
-        from src.data.economy import get_streamer_alerts
+        from src.data.util import get_streamer_alerts
 
         entries = await get_streamer_alerts(bot.db, guild_id, "youtube")
         return web.json_response(

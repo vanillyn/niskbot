@@ -10,6 +10,7 @@ from discord.ext import commands, tasks
 
 from src.data.config import GuildConfig
 from src.data.db import Database
+from src.member.util import _is_admin
 from src.utils.ui import BaseLayout
 
 if TYPE_CHECKING:
@@ -39,11 +40,21 @@ async def _create(
     author_id: int,
     title: str,
     details: str,
+    suggestion_type: str,
 ) -> int:
     await db.execute(
-        "insert into suggestions (guild_id, channel_id, author_id, title, details, created_at)"
-        " values (?, ?, ?, ?, ?, ?)",
-        (guild_id, channel_id, author_id, title, details, int(time.time())),
+        "insert into suggestions"
+        " (guild_id, channel_id, author_id, title, details, created_at, suggestion_type)"
+        " values (?, ?, ?, ?, ?, ?, ?)",
+        (
+            guild_id,
+            channel_id,
+            author_id,
+            title,
+            details,
+            int(time.time()),
+            suggestion_type,
+        ),
     )
     row = await db.fetchone("select last_insert_rowid()")
     assert row is not None
@@ -60,7 +71,8 @@ async def _set_message_id(db: Database, suggestion_id: int, message_id: int) -> 
 async def _get(db: Database, suggestion_id: int) -> tuple[object, ...] | None:
     return await db.fetchone(
         "select id, guild_id, channel_id, message_id, author_id, title, details,"
-        " votes_up, votes_down, status, created_at from suggestions where id = ?",
+        " votes_up, votes_down, status, created_at, suggestion_type"
+        " from suggestions where id = ?",
         (suggestion_id,),
     )
 
@@ -68,7 +80,8 @@ async def _get(db: Database, suggestion_id: int) -> tuple[object, ...] | None:
 async def _get_open(db: Database) -> list[tuple[object, ...]]:
     return await db.fetchall(
         "select id, guild_id, channel_id, message_id, author_id, title, details,"
-        " votes_up, votes_down, status, created_at from suggestions where status = 'open'",
+        " votes_up, votes_down, status, created_at, suggestion_type"
+        " from suggestions where status = 'open'",
     )
 
 
@@ -134,6 +147,48 @@ async def _close(db: Database, suggestion_id: int, status: str) -> None:
     )
 
 
+async def _add_suggestion_channel(
+    db: Database, guild_id: int, name: str, channel_id: int
+) -> None:
+    await db.execute(
+        "insert into suggestion_channels (guild_id, name, channel_id) values (?, ?, ?)"
+        " on conflict (guild_id, name) do update set channel_id = excluded.channel_id",
+        (guild_id, name, channel_id),
+    )
+
+
+async def _remove_suggestion_channel(db: Database, guild_id: int, name: str) -> bool:
+    row = await db.fetchone(
+        "select 1 from suggestion_channels where guild_id = ? and name = ?",
+        (guild_id, name),
+    )
+    if row is None:
+        return False
+    await db.execute(
+        "delete from suggestion_channels where guild_id = ? and name = ?",
+        (guild_id, name),
+    )
+    return True
+
+
+async def _list_suggestion_channels(
+    db: Database, guild_id: int
+) -> list[tuple[str, int]]:
+    rows = await db.fetchall(
+        "select name, channel_id from suggestion_channels where guild_id = ? order by name",
+        (guild_id,),
+    )
+    return [(str(r[0]), int(r[1])) for r in rows]  # type: ignore[arg-type]
+
+
+async def _get_suggestion_channel(db: Database, guild_id: int, name: str) -> int | None:
+    row = await db.fetchone(
+        "select channel_id from suggestion_channels where guild_id = ? and name = ?",
+        (guild_id, name),
+    )
+    return int(row[0]) if row is not None else None  # type: ignore[arg-type]
+
+
 def _build_layout(
     title: str,
     details: str,
@@ -146,11 +201,13 @@ def _build_layout(
     label_cancel: str,
     *,
     closed_status: str = "",
+    suggestion_type: str = "",
 ) -> BaseLayout:
     total = votes_up + votes_down
     pct = f"{int(votes_up / total * 100)}%" if total > 0 else "no votes yet"
+    type_prefix = f"[{suggestion_type}] " if suggestion_type else ""
     lines = [
-        f"**{title}**",
+        f"**{type_prefix}{title}**",
         details,
         "",
         f"by <@{author_id}> \u2014 {votes_up} for / {votes_down} against / {pct} approval",
@@ -231,6 +288,7 @@ class SuggestionButton(
         votes_up = int(row[7])  # type: ignore[arg-type]
         votes_down = int(row[8])  # type: ignore[arg-type]
         status = str(row[9])
+        suggestion_type = str(row[11])
 
         if interaction.guild.id != guild_id:
             return
@@ -267,6 +325,7 @@ class SuggestionButton(
                 cfg.server.suggestions_vote_down,
                 cfg.server.suggestions_vote_cancel,
                 closed_status="cancelled",
+                suggestion_type=suggestion_type,
             )
             await interaction.response.edit_message(view=layout)
             return
@@ -298,9 +357,33 @@ class SuggestionButton(
             cfg.server.suggestions_vote_up,
             cfg.server.suggestions_vote_down,
             cfg.server.suggestions_vote_cancel,
+            suggestion_type=suggestion_type,
         )
         await interaction.response.edit_message(view=layout)
         _ = channel_id
+
+
+async def _type_autocomplete(
+    interaction: discord.Interaction,
+    current: str,
+) -> list[app_commands.Choice[str]]:
+    if interaction.guild is None:
+        return []
+    from src.bot import Bot
+
+    bot = interaction.client
+    if not isinstance(bot, Bot):
+        return []
+    rows = await bot.db.fetchall(
+        "select name from suggestion_channels where guild_id = ? order by name",
+        (interaction.guild.id,),
+    )
+    names = [str(r[0]) for r in rows]
+    return [
+        app_commands.Choice(name=n, value=n)
+        for n in names
+        if current.lower() in n.lower()
+    ][:25]
 
 
 class SuggestionsCog(commands.Cog, name="suggestions"):
@@ -326,6 +409,7 @@ class SuggestionsCog(commands.Cog, name="suggestions"):
             votes_up = int(row[7])  # type: ignore[arg-type]
             votes_down = int(row[8])  # type: ignore[arg-type]
             created_at = int(row[10])  # type: ignore[arg-type]
+            suggestion_type = str(row[11])
 
             guild = self.bot.get_guild(guild_id)
             if guild is None:
@@ -372,6 +456,7 @@ class SuggestionsCog(commands.Cog, name="suggestions"):
                             cfg.server.suggestions_vote_down,
                             cfg.server.suggestions_vote_cancel,
                             closed_status=closed_status,
+                            suggestion_type=suggestion_type,
                         )
                         await msg.edit(view=layout)
                     except discord.HTTPException:
@@ -380,8 +465,9 @@ class SuggestionsCog(commands.Cog, name="suggestions"):
             if approved and cfg.log.moderation_channel is not None:
                 mod_ch = guild.get_channel(cfg.log.moderation_channel)
                 if isinstance(mod_ch, discord.TextChannel):
+                    type_str = f" [{suggestion_type}]" if suggestion_type else ""
                     lines = [
-                        "**suggestion approved**",
+                        f"**suggestion approved**{type_str}",
                         f"**title:** {title}",
                         f"**details:** {details}",
                         f"**by:** <@{author_id}>",
@@ -400,13 +486,92 @@ class SuggestionsCog(commands.Cog, name="suggestions"):
     async def _before_check(self) -> None:
         await self.bot.wait_until_ready()
 
+    suggestion = app_commands.Group(
+        name="suggestion", description="manage suggestion channels (admin)"
+    )
+
+    @suggestion.command(name="add", description="add a suggestion type and channel")
+    @app_commands.describe(name="type name", channel="channel for this type")
+    async def suggestion_add(
+        self,
+        interaction: discord.Interaction,
+        name: str,
+        channel: discord.TextChannel,
+    ) -> None:
+        if not isinstance(interaction.user, discord.Member) or not _is_admin(
+            interaction.user
+        ):
+            await interaction.response.send_message(
+                "missing permissions", ephemeral=True
+            )
+            return
+        if interaction.guild is None:
+            return
+        await _add_suggestion_channel(
+            self.bot.db, interaction.guild.id, name.lower().strip(), channel.id
+        )
+        await interaction.response.send_message(
+            f"suggestion type **{name}** mapped to {channel.mention}", ephemeral=True
+        )
+
+    @suggestion.command(name="remove", description="remove a suggestion type")
+    @app_commands.describe(name="type name to remove")
+    async def suggestion_remove(
+        self,
+        interaction: discord.Interaction,
+        name: str,
+    ) -> None:
+        if not isinstance(interaction.user, discord.Member) or not _is_admin(
+            interaction.user
+        ):
+            await interaction.response.send_message(
+                "missing permissions", ephemeral=True
+            )
+            return
+        if interaction.guild is None:
+            return
+        removed = await _remove_suggestion_channel(
+            self.bot.db, interaction.guild.id, name.lower().strip()
+        )
+        msg = f"removed type **{name}**" if removed else f"type **{name}** not found"
+        await interaction.response.send_message(msg, ephemeral=True)
+
+    @suggestion.command(name="list", description="list all suggestion types")
+    async def suggestion_list(self, interaction: discord.Interaction) -> None:
+        if not isinstance(interaction.user, discord.Member) or not _is_admin(
+            interaction.user
+        ):
+            await interaction.response.send_message(
+                "missing permissions", ephemeral=True
+            )
+            return
+        if interaction.guild is None:
+            return
+        entries = await _list_suggestion_channels(self.bot.db, interaction.guild.id)
+        if not entries:
+            await interaction.response.send_message(
+                "no suggestion types configured", ephemeral=True
+            )
+            return
+        lines = ["**suggestion types:**"]
+        for name, ch_id in entries:
+            lines.append(f"- **{name}** → <#{ch_id}>")
+        await interaction.response.send_message("\n".join(lines), ephemeral=True)
+
     @app_commands.command(name="suggest", description="submit a suggestion")
-    @app_commands.describe(title="suggestion title", details="details")
+    @app_commands.describe(
+        title="suggestion title",
+        details="details",
+        suggestion_type="suggestion category (if configured)",
+    )
+    @app_commands.rename(suggestion_type="type")
+    @app_commands.autocomplete(suggestion_type=_type_autocomplete)
     async def suggest(
         self,
         interaction: discord.Interaction,
         title: str,
         details: str,
+        suggestion_type: str | None = None,
     ) -> None:
         if (
             not isinstance(interaction.user, discord.Member)
@@ -415,19 +580,34 @@ class SuggestionsCog(commands.Cog, name="suggestions"):
             return
 
         cfg = await GuildConfig.load(self.bot.db, interaction.guild.id)
-        if cfg.server.suggestions_channel is None:
+        target_channel_id: int | None = None
+
+        if suggestion_type is not None:
+            target_channel_id = await _get_suggestion_channel(
+                self.bot.db, interaction.guild.id, suggestion_type.lower().strip()
+            )
+            if target_channel_id is None:
+                await interaction.response.send_message(
+                    f"suggestion type **{suggestion_type}** not found", ephemeral=True
+                )
+                return
+        else:
+            target_channel_id = cfg.server.suggestions_channel
+
+        if target_channel_id is None:
             await interaction.response.send_message(
                 "suggestions are not configured on this server", ephemeral=True
             )
             return
 
-        channel = interaction.guild.get_channel(cfg.server.suggestions_channel)
+        channel = interaction.guild.get_channel(target_channel_id)
         if not isinstance(channel, discord.TextChannel):
             await interaction.response.send_message(
                 "suggestions channel not found", ephemeral=True
             )
             return
 
+        stype = suggestion_type.lower().strip() if suggestion_type is not None else ""
         suggestion_id = await _create(
             self.bot.db,
             interaction.guild.id,
@@ -435,6 +615,7 @@ class SuggestionsCog(commands.Cog, name="suggestions"):
             interaction.user.id,
             title,
             details,
+            stype,
         )
 
         layout = _build_layout(
@@ -447,6 +628,7 @@ class SuggestionsCog(commands.Cog, name="suggestions"):
             cfg.server.suggestions_vote_up,
             cfg.server.suggestions_vote_down,
             cfg.server.suggestions_vote_cancel,
+            suggestion_type=stype,
         )
 
         try:
@@ -458,6 +640,13 @@ class SuggestionsCog(commands.Cog, name="suggestions"):
             return
 
         await _set_message_id(self.bot.db, suggestion_id, msg.id)
+
+        try:
+            thread_name = f"{stype}: {title}" if stype else title
+            await msg.create_thread(name=thread_name[:100], auto_archive_duration=10080)
+        except discord.HTTPException:
+            pass
+
         await interaction.response.send_message(
             f"suggestion submitted to {channel.mention}", ephemeral=True
         )
