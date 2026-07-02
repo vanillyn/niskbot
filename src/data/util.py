@@ -18,49 +18,16 @@ _CONFIGS: dict[str, list[tuple[str, str, str, str | None]]] = {
             "emoji char or custom emoji name",
             "star",
         ),
+        ("starboard.role", "roles on starboard", "comma-separated role ids", None),
+        (
+            "starboard.add.role",
+            "roles that add to starboard",
+            "comma-separated role ids",
+            None,
+        ),
         ("alias", "allow aliases", "true or false", "true"),
         ("alias.role", "alias manager roles", "comma-separated role ids", None),
         ("server.alias.prefix", "alias prefix", "e.g. ! or .", "!"),
-    ],
-    "suggestions": [
-        ("server.suggestions.channel", "suggestions channel", "channel id", None),
-        (
-            "server.suggestions.vote.up",
-            "upvote button label",
-            "text",
-            "upvote",
-        ),
-        (
-            "server.suggestions.vote.down",
-            "downvote button label",
-            "text",
-            "downvote",
-        ),
-        (
-            "server.suggestions.vote.cancel",
-            "cancel button label",
-            "text",
-            "cancel",
-        ),
-        (
-            "server.suggestions.threshold.approve",
-            "approval threshold %",
-            "integer 0-100",
-            "70",
-        ),
-        (
-            "server.suggestions.threshold.disapprove",
-            "disapproval threshold %",
-            "integer 0-100",
-            "30",
-        ),
-        ("server.suggestions.timeout", "suggestion timeout", "e.g. 24h, 7d", "24h"),
-        (
-            "server.suggestions.vote.roles",
-            "roles that can vote",
-            "comma-separated role ids (empty = anyone)",
-            None,
-        ),
     ],
     "moderation": [
         ("moderation.require_confirm", "require confirmation", "true or false", "true"),
@@ -217,91 +184,6 @@ _CONFIGS: dict[str, list[tuple[str, str, str, str | None]]] = {
         ("log.alerts.free_games.channel", "free games channel", "channel id", None),
         ("log.alerts.free_games.message", "free games message", "text", None),
     ],
-    "economy": [
-        ("economy", "enable economy", "true or false", "false"),
-        ("economy.currency.name", "currency name", "e.g. coins", "coins"),
-        ("economy.currency.symbol", "currency symbol", "e.g. $", "$"),
-        ("economy.currency.fractional", "fractional unit", "e.g. cents", "cents"),
-        ("economy.pay", "allow payments", "true or false", "true"),
-        ("economy.casino", "enable casino", "true or false", "false"),
-        ("economy.drop", "enable random drops", "true or false", "false"),
-        ("economy.drop.channels", "drop channels", "comma-separated channel ids", None),
-        ("economy.shop", "enable shop", "true or false", "false"),
-        ("economy.shop.channel", "permanent shop channel", "channel id", None),
-    ],
-    "economy roles": [
-        ("economy.role", "roles that earn money", "comma-separated role ids", None),
-        (
-            "economy.permission",
-            "perms to earn money",
-            "comma-separated perms",
-            "send_messages",
-        ),
-        ("economy.pay.role", "roles that can pay", "comma-separated role ids", None),
-        ("economy.casino.role", "roles for casino", "comma-separated role ids", None),
-        ("economy.drop.role", "roles to claim drops", "comma-separated role ids", None),
-        ("economy.shop.role", "roles to use shop", "comma-separated role ids", None),
-    ],
-    "cookies": [
-        (
-            "economy.currency.cookies",
-            "enable cookies",
-            "true or false",
-            "false",
-        ),
-        (
-            "economy.currency.cookies.name",
-            "cookie item name",
-            "e.g. cookie, star, gem",
-            "cookie",
-        ),
-        (
-            "economy.currency.cookies.symbol",
-            "cookie symbol",
-            "short string e.g. c",
-            "c",
-        ),
-        (
-            "economy.currency.cookies.value",
-            "sell value per cookie",
-            "integer amount of currency",
-            None,
-        ),
-        (
-            "economy.currency.cookies.messages",
-            "thank-you trigger phrases",
-            'json array e.g. ["thank you", "ty"]',
-            None,
-        ),
-    ],
-    "xp & roles": [
-        ("xp.role", "roles that earn xp", "comma-separated role ids", None),
-        (
-            "xp.achievements.role",
-            "roles for achievements",
-            "comma-separated role ids",
-            None,
-        ),
-        (
-            "xp.cookies.get.role",
-            "roles that get cookies",
-            "comma-separated role ids",
-            None,
-        ),
-        (
-            "xp.cookies.give.role",
-            "roles that give cookies",
-            "comma-separated role ids",
-            None,
-        ),
-        ("starboard.role", "roles on starboard", "comma-separated role ids", None),
-        (
-            "starboard.add.role",
-            "roles that add to starboard",
-            "comma-separated role ids",
-            None,
-        ),
-    ],
 }
 
 _CONFIGS_FLAT: dict[str, tuple[str, str, str | None]] = {
@@ -309,7 +191,6 @@ _CONFIGS_FLAT: dict[str, tuple[str, str, str | None]] = {
     for entries in _CONFIGS.values()
     for key, label, hint, default in entries
 }
-
 
 async def get_streamer_alerts(
     db: Database, guild_id: int, platform: str

@@ -15,6 +15,7 @@ from src.server.logging.moderation import log_infraction
 from src.server.moderation.infractions import add_infraction
 from src.server.permissions import has_permission
 from src.utils.ui import BaseLayout, ConfirmView
+from src.server.moderation.util import check_hierarchy, require_permission
 
 if TYPE_CHECKING:
     from src.bot import Bot
@@ -142,31 +143,21 @@ class ModerationActionsCog(commands.Cog, name="moderation"):
 
     @app_commands.command(name="warn", description="warn a member")
     @app_commands.describe(user="member to warn", reason="reason for the warning")
+    @require_permission("moderation.warn")
     async def warn(
         self,
         interaction: discord.Interaction,
         user: discord.Member,
         reason: str | None = None,
     ) -> None:
-        if interaction.guild is None or not isinstance(
-            interaction.user, discord.Member
-        ):
-            return
-        if not await has_permission(self.bot.db, interaction.user, "moderation.warn"):
-            await interaction.response.send_message(
-                "missing permissions", ephemeral=True
-            )
-            return
-        if user.top_role >= interaction.user.top_role:
-            await interaction.response.send_message(
-                "cannot warn someone with an equal or higher role", ephemeral=True
-            )
-            return
-
-        cfg = await GuildConfig.load(self.bot.db, interaction.guild.id)
-        actual_reason = reason or _pick(cfg.moderation.warn_default_reason, str(user))
         guild = interaction.guild
         moderator = interaction.user
+        if guild is None or not isinstance(moderator, discord.Member):
+            return
+        check_hierarchy(user, moderator)
+
+        cfg = await GuildConfig.load(self.bot.db, guild.id)
+        actual_reason = reason or _pick(cfg.moderation.warn_default_reason, str(user))
 
         async def execute(ci: discord.Interaction) -> None:
             await ci.response.defer(ephemeral=True)
@@ -210,6 +201,7 @@ class ModerationActionsCog(commands.Cog, name="moderation"):
         reason="reason for the kick",
         quiet="skip logging and dm",
     )
+    @require_permission("moderation.kick")
     async def kick(
         self,
         interaction: discord.Interaction,
@@ -217,25 +209,14 @@ class ModerationActionsCog(commands.Cog, name="moderation"):
         reason: str | None = None,
         quiet: bool = False,
     ) -> None:
-        if interaction.guild is None or not isinstance(
-            interaction.user, discord.Member
-        ):
-            return
-        if not await has_permission(self.bot.db, interaction.user, "moderation.kick"):
-            await interaction.response.send_message(
-                "missing permissions", ephemeral=True
-            )
-            return
-        if user.top_role >= interaction.user.top_role:
-            await interaction.response.send_message(
-                "cannot kick someone with an equal or higher role", ephemeral=True
-            )
-            return
-
-        cfg = await GuildConfig.load(self.bot.db, interaction.guild.id)
-        actual_reason = reason or _pick(cfg.moderation.kick_default_reason, str(user))
         guild = interaction.guild
         moderator = interaction.user
+        if guild is None or not isinstance(moderator, discord.Member):
+            return
+        check_hierarchy(user, moderator)
+
+        cfg = await GuildConfig.load(self.bot.db, guild.id)
+        actual_reason = reason or _pick(cfg.moderation.kick_default_reason, str(user))
 
         async def execute(ci: discord.Interaction) -> None:
             await ci.response.defer(ephemeral=True)
@@ -289,6 +270,7 @@ class ModerationActionsCog(commands.Cog, name="moderation"):
         quick="use default reason and duration, skip confirmation",
         purge="delete recent messages from this user",
     )
+    @require_permission("moderation.ban")
     async def ban(
         self,
         interaction: discord.Interaction,
@@ -299,22 +281,13 @@ class ModerationActionsCog(commands.Cog, name="moderation"):
         quick: bool = False,
         purge: bool = False,
     ) -> None:
-        if interaction.guild is None or not isinstance(
-            interaction.user, discord.Member
-        ):
+        guild = interaction.guild
+        moderator = interaction.user
+        if guild is None or not isinstance(moderator, discord.Member ):
             return
-        if not await has_permission(self.bot.db, interaction.user, "moderation.ban"):
-            await interaction.response.send_message(
-                "missing permissions", ephemeral=True
-            )
-            return
-        if user.top_role >= interaction.user.top_role:
-            await interaction.response.send_message(
-                "cannot ban someone with an equal or higher role", ephemeral=True
-            )
-            return
+        check_hierarchy(user, moderator)
 
-        cfg = await GuildConfig.load(self.bot.db, interaction.guild.id)
+        cfg = await GuildConfig.load(self.bot.db, guild.id)
         if quick:
             actual_reason = _pick(cfg.moderation.ban_default_reason, str(user))
             actual_duration = _parse_duration(cfg.moderation.ban_default_duration)
@@ -324,8 +297,7 @@ class ModerationActionsCog(commands.Cog, name="moderation"):
             )
             actual_duration = _parse_duration(duration) if duration else None
 
-        guild = interaction.guild
-        moderator = interaction.user
+        
 
         async def execute(ci: discord.Interaction) -> None:
             await ci.response.defer(ephemeral=True)
@@ -377,143 +349,118 @@ class ModerationActionsCog(commands.Cog, name="moderation"):
         else:
             await execute(interaction)
 
-            @app_commands.command(name="mute", description="mute a member")
-            @app_commands.describe(
-                user="member to mute",
-                reason="reason for the mute",
-                duration="mute length (e.g. 1h, 7d)",
-                quiet="skip logging and dm",
+    @app_commands.command(name="mute", description="mute a member")
+    @app_commands.describe(
+        user="member to mute",
+        reason="reason for the mute",
+        duration="mute length (e.g. 1h, 7d)",
+        quiet="skip logging and dm",
+    )
+    @require_permission("moderation.mute")
+    async def mute(
+        self,
+        interaction: discord.Interaction,
+        user: discord.Member,
+        reason: str | None = None,
+        duration: str | None = None,
+        quiet: bool = False,
+    ) -> None:
+        
+        guild = interaction.guild
+        moderator = interaction.user
+        if guild is None or not isinstance(moderator, discord.Member):
+            return
+        check_hierarchy(user, moderator)
+        cfg = await GuildConfig.load(self.bot.db, guild.id)
+        if cfg.moderation.mute_role is None:
+            await interaction.response.send_message(
+                "no mute role configured — set `moderation.mute.role` first",
+                ephemeral=True,
             )
-            async def mute(
-                self,
-                interaction: discord.Interaction,
-                user: discord.Member,
-                reason: str | None = None,
-                duration: str | None = None,
-                quiet: bool = False,
+            return
+        mute_role = interaction.guild.get_role(cfg.moderation.mute_role)
+        if mute_role is None:
+            await interaction.response.send_message(
+                "mute role not found — it may have been deleted", ephemeral=True
+            )
+            return
+        actual_reason = reason or _pick(
+            cfg.moderation.mute_default_reason, str(user)
+        )
+        raw_duration = duration or cfg.moderation.mute_default_duration
+        actual_duration = (
+            _parse_duration(raw_duration) if raw_duration else None
+        )
+        async def execute(ci: discord.Interaction) -> None:
+            await ci.response.defer(ephemeral=True)
+            try:
+                await user.add_roles(mute_role, reason=actual_reason)
+            except discord.HTTPException as e:
+                await ci.followup.send(f"failed to mute: {e}", ephemeral=True)
+                return
+            if actual_duration is not None:
+                asyncio.create_task(
+                    _schedule_unmute(
+                        guild, user.id, mute_role.id, actual_duration
+                    )
+                )
+            infraction = await add_infraction(
+                self.bot.db,
+                guild_id=guild.id,
+                target_id=user.id,
+                target_name=str(user),
+                moderator_id=moderator.id,
+                infraction_type="mute",
+                reason=actual_reason,
+                duration=int(actual_duration.total_seconds())
+                if actual_duration
+                else None,
+            )
+            if not quiet:
+                await _dm(user, cfg.moderation.mute_dm, actual_reason)
+                await log_infraction(self.bot.db, guild, infraction)
+            if cfg.moderation.mute_channel is not None:
+                mute_ch = guild.get_channel(cfg.moderation.mute_channel)
+                if isinstance(mute_ch, discord.TextChannel):
+                    dur_str = _fmt_duration(actual_duration)
+                    lines = [
+                        f"{user.mention} you have been muted by a moderator.",
+                        f"**reason:** {actual_reason}",
+                        f"**duration:** {dur_str}",
+                        "",
+                        "if you have questions or want to discuss this, you can talk here.",
+                        f"a moderator will be with you shortly — {moderator.mention}",
+                    ]
+                    mute_layout = BaseLayout()
+                    mute_layout.add_container(
+                        ui.TextDisplay("\n".join(lines)), accent_color=0xEB459E
+                    )
+                    await mute_ch.send(view=mute_layout)
+            layout = BaseLayout()
+            layout.add_container(
+                ui.TextDisplay(
+                    _channel_msg(
+                        cfg.moderation.mute_channel_msg, user, actual_reason
+                    )
+                ),
+                accent_color=0xEB459E,
+            )
+            await ci.followup.send(view=layout, ephemeral=quiet)
+        if cfg.moderation.require_confirm and not quiet:
+            async def on_confirm(
+                ci: discord.Interaction, confirmed: bool
             ) -> None:
-                if interaction.guild is None or not isinstance(
-                    interaction.user, discord.Member
-                ):
+                if not confirmed:
+                    await ci.response.send_message("cancelled", ephemeral=True)
                     return
-                if not await has_permission(
-                    self.bot.db, interaction.user, "moderation.mute"
-                ):
-                    await interaction.response.send_message(
-                        "missing permissions", ephemeral=True
-                    )
-                    return
-                if user.top_role >= interaction.user.top_role:
-                    await interaction.response.send_message(
-                        "cannot mute someone with an equal or higher role",
-                        ephemeral=True,
-                    )
-                    return
-
-                cfg = await GuildConfig.load(self.bot.db, interaction.guild.id)
-
-                if cfg.moderation.mute_role is None:
-                    await interaction.response.send_message(
-                        "no mute role configured — set `moderation.mute.role` first",
-                        ephemeral=True,
-                    )
-                    return
-
-                mute_role = interaction.guild.get_role(cfg.moderation.mute_role)
-                if mute_role is None:
-                    await interaction.response.send_message(
-                        "mute role not found — it may have been deleted", ephemeral=True
-                    )
-                    return
-
-                actual_reason = reason or _pick(
-                    cfg.moderation.mute_default_reason, str(user)
-                )
-                raw_duration = duration or cfg.moderation.mute_default_duration
-                actual_duration = (
-                    _parse_duration(raw_duration) if raw_duration else None
-                )
-                guild = interaction.guild
-                moderator = interaction.user
-
-                async def execute(ci: discord.Interaction) -> None:
-                    await ci.response.defer(ephemeral=True)
-                    try:
-                        await user.add_roles(mute_role, reason=actual_reason)
-                    except discord.HTTPException as e:
-                        await ci.followup.send(f"failed to mute: {e}", ephemeral=True)
-                        return
-
-                    if actual_duration is not None:
-                        asyncio.create_task(
-                            _schedule_unmute(
-                                guild, user.id, mute_role.id, actual_duration
-                            )
-                        )
-
-                    infraction = await add_infraction(
-                        self.bot.db,
-                        guild_id=guild.id,
-                        target_id=user.id,
-                        target_name=str(user),
-                        moderator_id=moderator.id,
-                        infraction_type="mute",
-                        reason=actual_reason,
-                        duration=int(actual_duration.total_seconds())
-                        if actual_duration
-                        else None,
-                    )
-
-                    if not quiet:
-                        await _dm(user, cfg.moderation.mute_dm, actual_reason)
-                        await log_infraction(self.bot.db, guild, infraction)
-
-                    if cfg.moderation.mute_channel is not None:
-                        mute_ch = guild.get_channel(cfg.moderation.mute_channel)
-                        if isinstance(mute_ch, discord.TextChannel):
-                            dur_str = _fmt_duration(actual_duration)
-                            lines = [
-                                f"{user.mention} you have been muted by a moderator.",
-                                f"**reason:** {actual_reason}",
-                                f"**duration:** {dur_str}",
-                                "",
-                                "if you have questions or want to discuss this, you can talk here.",
-                                f"a moderator will be with you shortly — {moderator.mention}",
-                            ]
-                            mute_layout = BaseLayout()
-                            mute_layout.add_container(
-                                ui.TextDisplay("\n".join(lines)), accent_color=0xEB459E
-                            )
-                            await mute_ch.send(view=mute_layout)
-
-                    layout = BaseLayout()
-                    layout.add_container(
-                        ui.TextDisplay(
-                            _channel_msg(
-                                cfg.moderation.mute_channel_msg, user, actual_reason
-                            )
-                        ),
-                        accent_color=0xEB459E,
-                    )
-                    await ci.followup.send(view=layout, ephemeral=quiet)
-
-                if cfg.moderation.require_confirm and not quiet:
-
-                    async def on_confirm(
-                        ci: discord.Interaction, confirmed: bool
-                    ) -> None:
-                        if not confirmed:
-                            await ci.response.send_message("cancelled", ephemeral=True)
-                            return
-                        await execute(ci)
-
-                    await interaction.response.send_message(
-                        f"mute {user.mention}?",
-                        view=ConfirmView(on_confirm),
-                        ephemeral=True,
-                    )
-                else:
-                    await execute(interaction)
+                await execute(ci)
+            await interaction.response.send_message(
+                f"mute {user.mention}?",
+                view=ConfirmView(on_confirm),
+                ephemeral=True,
+            )
+        else:
+            await execute(interaction)
 
     @app_commands.command(name="slowmode", description="set slowmode on a channel")
     @app_commands.describe(
@@ -523,6 +470,7 @@ class ModerationActionsCog(commands.Cog, name="moderation"):
         channel="target channel (defaults to current)",
         quick="use defaults: 5s interval for 30 minutes",
     )
+    @require_permission("moderation.slowmode")
     async def slowmode(
         self,
         interaction: discord.Interaction,
@@ -532,16 +480,10 @@ class ModerationActionsCog(commands.Cog, name="moderation"):
         channel: discord.TextChannel | None = None,
         quick: bool = False,
     ) -> None:
-        if interaction.guild is None or not isinstance(
-            interaction.user, discord.Member
-        ):
-            return
-        if not await has_permission(
-            self.bot.db, interaction.user, "moderation.slowmode"
-        ):
-            await interaction.response.send_message(
-                "missing permissions", ephemeral=True
-            )
+
+        guild = interaction.guild
+        moderator = interaction.user
+        if guild is None or not isinstance(moderator, discord.Member):
             return
 
         if channel is None:
@@ -552,7 +494,7 @@ class ModerationActionsCog(commands.Cog, name="moderation"):
                 return
             channel = interaction.channel
 
-        cfg = await GuildConfig.load(self.bot.db, interaction.guild.id)
+        cfg = await GuildConfig.load(self.bot.db, guild.id)
         actual_interval = 5 if quick else interval
         actual_duration = (
             _parse_duration("30m")
@@ -560,7 +502,7 @@ class ModerationActionsCog(commands.Cog, name="moderation"):
             else (_parse_duration(duration) if duration else None)
         )
         actual_reason = reason or _pick(
-            cfg.moderation.slowmode_default_reason, str(interaction.user)
+            cfg.moderation.slowmode_default_reason, str(moderator)
         )
         guild = interaction.guild
         moderator = interaction.user
@@ -628,17 +570,18 @@ class ModerationActionsCog(commands.Cog, name="moderation"):
         amount="number of messages to delete (max 100)",
         user="only delete messages from this user",
     )
+    @require_permission("moderation.purge")
     async def purge(
         self,
         interaction: discord.Interaction,
         amount: app_commands.Range[int, 1, 100],
         user: discord.Member | None = None,
     ) -> None:
-        if interaction.guild is None or not isinstance(
-            interaction.user, discord.Member
-        ):
+        guild = interaction.guild
+        moderator = interaction.user
+        if guild is None or not isinstance(moderator, discord.Member):
             return
-        if not await has_permission(self.bot.db, interaction.user, "moderation.purge"):
+        if not await has_permission(self.bot.db, moderator, "moderation.purge"):
             await interaction.response.send_message(
                 "missing permissions", ephemeral=True
             )
@@ -657,7 +600,7 @@ class ModerationActionsCog(commands.Cog, name="moderation"):
         lines = [
             f"**purge** — {len(deleted)} message(s) deleted",
             f"**channel:** {channel.mention}",
-            f"**moderator:** {interaction.user}",
+            f"**moderator:** {moderator}",
         ]
         if user is not None:
             lines.append(f"**filtered to:** {user}")
@@ -665,6 +608,69 @@ class ModerationActionsCog(commands.Cog, name="moderation"):
         layout.add_container(ui.TextDisplay("\n".join(lines)), accent_color=0x57F287)
         await interaction.followup.send(view=layout, ephemeral=True)
 
+    """ @app_commands.command(name="shutdown", description="locks access to a channel or channels in case of a raid")
+    @app_commands.describe(
+        channels="channels to lock (defaults to current)",
+        reason="reason for the shutdown",
+    )
+    @require_permission("moderation.shutdown")
+    async def shutdown(
+        self,
+        interaction: discord.Interaction,
+        channels: list[discord.TextChannel] | None = None,
+        reason: str | None = None,
+    ) -> None:
+        guild = interaction.guild
+        moderator = interaction.user
+        if guild is None or not isinstance(moderator, discord.Member):
+            return
+        if channels is None:
+            if not isinstance(interaction.channel, discord.TextChannel):
+                await interaction.response.send_message(
+                    "run this in a text channel or specify one", ephemeral=True
+                )
+                return
+            channels = [interaction.channel]
+
+        cfg = await GuildConfig.load(self.bot.db, guild.id)
+        actual_reason = reason or _pick(
+            cfg.moderation.shutdown_default_reason, str(moderator)
+        )
+
+        await interaction.response.defer(ephemeral=True)
+        for channel in channels:
+            try:
+                await channel.set_permissions(
+                    guild.default_role,
+                    send_messages=False,
+                    reason=actual_reason,
+                )
+            except discord.HTTPException as e:
+                await interaction.followup.send(
+                    f"failed to lock {channel.mention}: {e}", ephemeral=True
+                )
+                continue
+
+            infraction = await add_infraction(
+                self.bot.db,
+                guild_id=guild.id,
+                target_id=channel.id,
+                target_name=channel.name,
+                moderator_id=moderator.id,
+                infraction_type="shutdown",
+                reason=actual_reason,
+            )
+            await log_infraction(self.bot.db, guild, infraction)
+
+        layout = BaseLayout()
+        layout.add_container(
+            ui.TextDisplay(
+                f"**shutdown** — locked {len(channels)} channel(s)\n"
+                + "\n".join(f"- {ch.mention}" for ch in channels)
+            ),
+            accent_color=0xED4245,
+        )
+        await interaction.followup.send(view=layout) """
 
 async def setup(bot: "Bot") -> None:
     await bot.add_cog(ModerationActionsCog(bot))

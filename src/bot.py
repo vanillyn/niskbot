@@ -6,7 +6,7 @@ import os
 import discord
 from aiohttp import web
 from discord.ext import commands
-
+from discord import app_commands
 from src.data.db import Database
 from src.utils.logger import get_logger, setup_discord_logging
 
@@ -75,8 +75,21 @@ class Bot(commands.Bot):
         interaction: discord.Interaction,
         error: Exception,
     ) -> None:
-        log.error("tree error: %s", error, exc_info=error)
-        msg = "something went wrong"
+        from src.server.moderation.util import (
+            hierarchy_violation,
+            missing_moderation_permission,
+        )
+
+        if isinstance(error, missing_moderation_permission):
+            msg = "you don't have permission to run this command"
+        elif isinstance(error, hierarchy_violation):
+            msg = "cannot target someone with an equal or higher role"
+        elif isinstance(error, app_commands.CheckFailure):
+            msg = "you don't have permission to run this command"
+        else:
+            log.error("tree error: %s", error, exc_info=error)
+            msg = "something went wrong"
+
         try:
             if interaction.response.is_done():
                 await interaction.followup.send(msg, ephemeral=True)
